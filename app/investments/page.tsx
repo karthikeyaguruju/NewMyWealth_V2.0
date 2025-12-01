@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
+import { startOfMonth, endOfMonth, subMonths, subYears, format } from 'date-fns';
 import {
     PieChart,
     Pie,
@@ -33,17 +34,56 @@ const COLORS = ['#000000', '#333333', '#666666', '#999999', '#CCCCCC']; // Black
 const PURPLE_GRADIENT = ['#8B5CF6', '#A78BFA'];
 const BLUE_GRADIENT = ['#3B82F6', '#60A5FA'];
 
+type TimeRange = '1M' | '3M' | '6M' | '1Y' | 'ALL';
+
 export default function InvestmentsPage() {
+    const [timeRange, setTimeRange] = useState<TimeRange>('6M');
     const [data, setData] = useState<InvestmentData | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchInvestments();
-    }, []);
+    }, [timeRange]);
 
     const fetchInvestments = async () => {
         try {
-            const response = await fetch('/api/investments');
+            setLoading(true);
+
+            let queryParams = '';
+            const endDate = new Date();
+            let startDate = new Date();
+            let historyMonths = 6;
+
+            if (timeRange !== 'ALL') {
+                switch (timeRange) {
+                    case '1M':
+                        startDate = startOfMonth(endDate);
+                        historyMonths = 1;
+                        break;
+                    case '3M':
+                        startDate = subMonths(endDate, 2);
+                        historyMonths = 3;
+                        break;
+                    case '6M':
+                        startDate = subMonths(endDate, 5);
+                        historyMonths = 6;
+                        break;
+                    case '1Y':
+                        startDate = subYears(endDate, 1);
+                        historyMonths = 12;
+                        break;
+                }
+                const formattedStartDate = format(startOfMonth(startDate), 'yyyy-MM-dd');
+                const formattedEndDate = format(endOfMonth(endDate), 'yyyy-MM-dd');
+                queryParams = `?startDate=${formattedStartDate}&endDate=${formattedEndDate}&historyMonths=${historyMonths}`;
+            } else {
+                // For ALL, we might want to show a longer trend, e.g., 12 months or more
+                // But for now let's default to 12 months trend if ALL is selected, or handle it in API
+                // Let's pass a large historyMonths for ALL
+                queryParams = `?historyMonths=12`;
+            }
+
+            const response = await fetch(`/api/investments${queryParams}`);
             const result = await response.json();
             setData(result);
         } catch (error) {
@@ -73,13 +113,29 @@ export default function InvestmentsPage() {
     return (
         <DashboardLayout>
             <div className="space-y-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        Investment Analysis
-                    </h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">
-                        Track and analyze your investment portfolio performance
-                    </p>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                            Investment Analysis
+                        </h1>
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">
+                            Track and analyze your investment portfolio performance
+                        </p>
+                    </div>
+                    <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-lg inline-flex">
+                        {(['1M', '3M', '6M', '1Y', 'ALL'] as TimeRange[]).map((range) => (
+                            <button
+                                key={range}
+                                onClick={() => setTimeRange(range)}
+                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${timeRange === range
+                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                            >
+                                {range}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Top Metrics Cards */}
@@ -94,7 +150,9 @@ export default function InvestmentsPage() {
                                 <h2 className="text-4xl font-bold text-purple-600 dark:text-purple-400 mt-2">
                                     ₹{data.totalInvested.toLocaleString()}
                                 </h2>
-                                <p className="text-sm text-gray-400 mt-1">All time</p>
+                                <p className="text-sm text-gray-400 mt-1">
+                                    {timeRange === 'ALL' ? 'All time' : `Last ${timeRange}`}
+                                </p>
                             </div>
                             <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-full">
                                 <Target className="text-purple-600 dark:text-purple-400" size={24} />
@@ -198,7 +256,7 @@ export default function InvestmentsPage() {
                             Monthly Investment Amount
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            Investment amounts over the last 6 months
+                            Investment amounts over the selected period
                         </p>
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
@@ -248,7 +306,7 @@ export default function InvestmentsPage() {
                             Investment Trend
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            6 month investment trend analysis
+                            Trend analysis over the selected period
                         </p>
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">

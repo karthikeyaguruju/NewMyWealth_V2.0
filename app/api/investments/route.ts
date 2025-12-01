@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
             value,
         }));
 
-        // Investment trend over time (last 6 months)
+        // Generate trend data based on historyMonths
+        const historyMonths = searchParams.get('historyMonths') ? parseInt(searchParams.get('historyMonths')!) : 6;
         const monthlyData: any[] = [];
         const today = new Date();
 
@@ -83,12 +84,11 @@ export async function GET(request: NextRequest) {
             ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
             : 0;
 
-        // Generate 6-month trend data
-        for (let i = 5; i >= 0; i--) {
+        for (let i = historyMonths - 1; i >= 0; i--) {
             const monthDate = subMonths(today, i);
             const monthStart = format(startOfMonth(monthDate), 'yyyy-MM-dd');
             const monthEnd = format(endOfMonth(monthDate), 'yyyy-MM-dd');
-            const monthLabel = format(monthDate, 'MMM');
+            const monthLabel = format(monthDate, 'MMM yyyy');
 
             const monthInvestments = investments.filter(
                 (t) => t.date >= monthStart && t.date <= monthEnd

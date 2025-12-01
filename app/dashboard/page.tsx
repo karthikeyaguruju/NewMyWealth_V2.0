@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { MetricCard } from '@/components/MetricCard';
+import { BudgetTracker } from '@/components/BudgetTracker';
 import { Badge } from '@/components/ui/Badge';
 import {
     DollarSign,
@@ -233,6 +234,11 @@ export default function DashboardPage() {
                             )}
                         </div>
                     </div>
+                </div>
+
+                {/* Budget Tracker */}
+                <div className="grid grid-cols-1 gap-6">
+                    <BudgetTracker />
                 </div>
             </div>
         </DashboardLayout>
