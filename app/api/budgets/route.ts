@@ -1,13 +1,13 @@
+// Budgets API route
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/jwt';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 
 async function getUserId(request: NextRequest): Promise<string | null> {
     const token = request.cookies.get('token')?.value;
     if (!token) return null;
-
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     return decoded?.userId || null;
 }
 
@@ -30,21 +30,23 @@ export async function GET(request: NextRequest) {
                 userId,
                 month: currentMonth,
             },
+            include: {
+                category: true,
+            },
         });
 
         // Calculate spending for each budget
         const budgetsWithProgress = await Promise.all(budgets.map(async (budget) => {
-            const startDate = `${currentMonth}-01`;
-            // Calculate end date properly
+            // Construct Date objects for the start and end of the month
             const [year, month] = currentMonth.split('-').map(Number);
-            const endDateObj = endOfMonth(new Date(year, month - 1));
-            const endDate = format(endDateObj, 'yyyy-MM-dd');
+            const startDate = new Date(year, month - 1, 1); // Local time start of month
+            const endDate = endOfMonth(startDate); // Local time end of month
 
             const expenses = await prisma.transaction.aggregate({
                 where: {
                     userId,
                     type: 'expense',
-                    category: budget.category,
+                    category: budget.category.name, // Use name from relation
                     date: {
                         gte: startDate,
                         lte: endDate,
@@ -57,6 +59,7 @@ export async function GET(request: NextRequest) {
 
             return {
                 ...budget,
+                category: budget.category.name, // Flatten for frontend compatibility
                 spent: expenses._sum.amount || 0,
             };
         }));
@@ -77,17 +80,29 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { category, amount, month } = body;
+        const { category: categoryName, amount, month } = body;
 
-        if (!category || !amount || !month) {
+        if (!categoryName || !amount || !month) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Check if budget already exists
+        // Find the category first to get its ID
+        const categoryObj = await prisma.category.findFirst({
+            where: {
+                userId,
+                name: categoryName,
+            },
+        });
+
+        if (!categoryObj) {
+            return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+        }
+
+        // Check if budget already exists for this category and month
         const existingBudget = await prisma.budget.findFirst({
             where: {
                 userId,
-                category,
+                categoryId: categoryObj.id,
                 month,
             },
         });
@@ -97,20 +112,29 @@ export async function POST(request: NextRequest) {
             const updatedBudget = await prisma.budget.update({
                 where: { id: existingBudget.id },
                 data: { amount: parseFloat(amount) },
+                include: { category: true },
             });
-            return NextResponse.json(updatedBudget);
+            return NextResponse.json({
+                ...updatedBudget,
+                category: updatedBudget.category.name,
+            });
         }
 
         const budget = await prisma.budget.create({
             data: {
                 userId,
-                category,
+                categoryId: categoryObj.id,
                 amount: parseFloat(amount),
                 month,
             },
+            include: { category: true },
         });
 
-        return NextResponse.json(budget, { status: 201 });
+        return NextResponse.json({
+            ...budget,
+            category: budget.category.name,
+        }, { status: 201 });
+
     } catch (error) {
         console.error('Create budget error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

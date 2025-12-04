@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/jwt';
 
 async function getUserId(request: NextRequest): Promise<string | null> {
     const token = request.cookies.get('token')?.value;
     if (!token) return null;
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     return decoded?.userId || null;
 }
 
@@ -19,9 +19,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { fullName, email, enableBudgetAlerts, monthlyBudget } = body;
-
-        // Validation could be added here (e.g., email format)
+        const { fullName, email } = body;
 
         // Check if email is being changed and if it's already taken
         if (email) {
@@ -38,15 +36,12 @@ export async function PUT(request: NextRequest) {
             data: {
                 fullName,
                 email,
-                enableBudgetAlerts,
-                monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : null,
             },
             select: {
                 id: true,
-                fullName: true,
                 email: true,
-                enableBudgetAlerts: true,
-                monthlyBudget: true,
+                fullName: true,
+                createdAt: true,
             },
         });
 
@@ -70,7 +65,7 @@ export async function DELETE(request: NextRequest) {
         });
 
         const response = NextResponse.json({ message: 'Account deleted successfully' });
-        response.cookies.delete('token'); // Clear auth cookie
+        response.cookies.delete('token');
         return response;
     } catch (error) {
         console.error('Delete account error:', error);

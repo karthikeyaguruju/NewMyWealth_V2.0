@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, generateToken } from '@/lib/jwt';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
     const { pathname } = request.nextUrl;
 
     // Public routes
     const isPublicRoute = pathname === '/login' || pathname === '/signup';
 
-    // API routes don't need middleware redirect (they handle auth themselves)
     if (pathname.startsWith('/api')) {
         return NextResponse.next();
     }
@@ -19,11 +18,44 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    // If user is authenticated and trying to access login/signup
-    if (token && isPublicRoute) {
-        const decoded = verifyToken(token);
-        if (decoded) {
-            return NextResponse.redirect(new URL('/dashboard', request.url));
+    // If user is authenticated
+    if (token) {
+        const decoded = await verifyToken(token);
+
+        // If token is invalid/expired
+        if (!decoded) {
+            // If trying to access protected route, redirect to login
+            if (!isPublicRoute) {
+                return NextResponse.redirect(new URL('/login', request.url));
+            }
+            // If public route, just let them pass (they are effectively logged out)
+        } else {
+            // Token is valid.
+            // If user is on a public route (login/signup), redirect to dashboard
+            if (isPublicRoute) {
+                return NextResponse.redirect(new URL('/dashboard', request.url));
+            }
+
+            // Refresh token logic (Sliding Window)
+            const response = NextResponse.next();
+
+            // Calculate remaining time
+            const now = Math.floor(Date.now() / 1000);
+            const timeRemaining = decoded.exp - now;
+
+            // Refresh if < 9 minutes remaining (1 minute passed)
+            if (timeRemaining < 540) {
+                const newToken = await generateToken(decoded.userId);
+                response.cookies.set('token', newToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    maxAge: 600, // 10 minutes
+                    path: '/',
+                });
+            }
+
+            return response;
         }
     }
 

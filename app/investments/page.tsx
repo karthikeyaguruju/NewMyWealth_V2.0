@@ -40,6 +40,7 @@ export default function InvestmentsPage() {
     const [timeRange, setTimeRange] = useState<TimeRange>('6M');
     const [data, setData] = useState<InvestmentData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchInvestments();
@@ -48,6 +49,7 @@ export default function InvestmentsPage() {
     const fetchInvestments = async () => {
         try {
             setLoading(true);
+            setError(null);
 
             let queryParams = '';
             const endDate = new Date();
@@ -85,15 +87,21 @@ export default function InvestmentsPage() {
 
             const response = await fetch(`/api/investments${queryParams}`);
             const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to fetch investments');
+            }
+
             setData(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to fetch investments:', error);
+            setError(error.message || 'An error occurred');
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading || !data) {
+    if (loading) {
         return (
             <DashboardLayout>
                 <div className="flex items-center justify-center h-64">
@@ -103,9 +111,26 @@ export default function InvestmentsPage() {
         );
     }
 
+    if (error || !data) {
+        return (
+            <DashboardLayout>
+                <div className="flex flex-col items-center justify-center h-64 text-red-500">
+                    <p className="text-lg font-semibold">Error loading investments</p>
+                    <p className="text-sm">{error || 'No data available'}</p>
+                    <button 
+                        onClick={fetchInvestments}
+                        className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     // Calculate cumulative trend for the line chart
     let cumulativeAmount = 0;
-    const trendData = data.monthlyData.map(item => {
+    const trendData = (data.monthlyData || []).map(item => {
         cumulativeAmount += item.amount;
         return { ...item, cumulative: cumulativeAmount };
     });

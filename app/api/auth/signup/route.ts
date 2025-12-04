@@ -3,87 +3,72 @@ import { prisma } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { signupSchema } from '@/lib/validations';
 
-// Default categories for new users
-const DEFAULT_CATEGORIES = [
-    // Income
-    { categoryGroup: 'Income', name: 'Salary', isDefault: true },
-    { categoryGroup: 'Income', name: 'Freelancing', isDefault: true },
-    { categoryGroup: 'Income', name: 'Side Hustle', isDefault: true },
-    { categoryGroup: 'Income', name: 'Tuition', isDefault: true },
-    // Expense
-    { categoryGroup: 'Expense', name: 'Rents', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Insurance', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Mobile Recharge', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Food/Grocery', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Fun', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Beauty', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Bike EMI', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Phone EMI', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Miscellaneous', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Children', isDefault: true },
-    { categoryGroup: 'Expense', name: 'Investment', isDefault: true },
-    // Investment
-    { categoryGroup: 'Investment', name: 'Stocks', isDefault: true },
-    { categoryGroup: 'Investment', name: 'Mutual Funds', isDefault: true },
-    { categoryGroup: 'Investment', name: 'Fixed Deposit', isDefault: true },
-    { categoryGroup: 'Investment', name: 'PPF', isDefault: true },
-    { categoryGroup: 'Investment', name: 'NPS', isDefault: true },
-    { categoryGroup: 'Investment', name: 'Bonds', isDefault: true },
-];
-
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
+        const validation = signupSchema.safeParse(body);
 
-        // Validate input
-        const validatedData = signupSchema.parse(body);
+        if (!validation.success) {
+            return NextResponse.json(
+                { error: validation.error.errors[0].message },
+                { status: 400 }
+            );
+        }
+
+        const { fullName, email, password } = validation.data;
 
         // Check if user already exists
         const existingUser = await prisma.user.findUnique({
-            where: { email: validatedData.email },
+            where: { email },
         });
 
         if (existingUser) {
             return NextResponse.json(
                 { error: 'User with this email already exists' },
-                { status: 400 }
+                { status: 409 }
             );
         }
 
-        // Hash password
-        const passwordHash = await hashPassword(validatedData.password);
+        const hashedPassword = await hashPassword(password);
 
         // Create user
         const user = await prisma.user.create({
             data: {
-                fullName: validatedData.fullName,
-                email: validatedData.email,
-                passwordHash,
+                fullName,
+                email,
+                passwordHash: hashedPassword,
             },
         });
 
-        // Create default categories for the user
+        // Seed default categories
+        const defaultCategories = [
+            { name: 'Salary', categoryGroup: 'Income', isDefault: true },
+            { name: 'Freelancing', categoryGroup: 'Income', isDefault: true },
+            { name: 'Investments', categoryGroup: 'Income', isDefault: true },
+            { name: 'Rent', categoryGroup: 'Expense', isDefault: true },
+            { name: 'Groceries', categoryGroup: 'Expense', isDefault: true },
+            { name: 'Utilities', categoryGroup: 'Expense', isDefault: true },
+            { name: 'Entertainment', categoryGroup: 'Expense', isDefault: true },
+            { name: 'Transportation', categoryGroup: 'Expense', isDefault: true },
+            { name: 'Healthcare', categoryGroup: 'Expense', isDefault: true },
+            { name: 'Stocks', categoryGroup: 'Investment', isDefault: true },
+            { name: 'Mutual Funds', categoryGroup: 'Investment', isDefault: true },
+            { name: 'Real Estate', categoryGroup: 'Investment', isDefault: true },
+            { name: 'Crypto', categoryGroup: 'Investment', isDefault: true },
+            { name: 'Gold', categoryGroup: 'Investment', isDefault: true },
+            { name: 'Bonds', categoryGroup: 'Investment', isDefault: true },
+        ];
+
         await prisma.category.createMany({
-            data: DEFAULT_CATEGORIES.map((cat) => ({
-                userId: user.id,
-                ...cat,
-            })),
+            data: defaultCategories.map(cat => ({ ...cat, userId: user.id })),
         });
 
         return NextResponse.json(
-            { message: 'User created successfully', userId: user.id },
+            { message: 'User created successfully' },
             { status: 201 }
         );
-    } catch (error: any) {
+    } catch (error) {
         console.error('Signup error:', error);
-
-        if (error.name === 'ZodError') {
-            return NextResponse.json(
-                { error: 'Validation failed', details: error.errors },
-                { status: 400 }
-            );
-        }
-
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

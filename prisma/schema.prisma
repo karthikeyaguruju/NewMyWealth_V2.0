@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,60 +9,60 @@ datasource db {
 
 model User {
   id           String        @id @default(auto()) @map("_id") @db.ObjectId
-  fullName     String
   email        String        @unique
+  fullName     String
   passwordHash String
   createdAt    DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  enableBudgetAlerts Boolean       @default(false)
-  monthlyBudget      Float?
-  categories         Category[]
-  transactions       Transaction[]
-  budgets            Budget[]
-}
-
-model Budget {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category  String
-  amount    Float
-  month     String   // Format: "YYYY-MM"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@unique([userId, category, month])
+  updatedAt    DateTime      @updatedAt
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
 }
 
 model Category {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String   @db.ObjectId
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryGroup String   // "Income" | "Expense" | "Investment"
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
   name          String
-  isDefault     Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  categoryGroup String // Income, Expense, Investment
+  isDefault     Boolean       @default(false)
+  userId        String        @db.ObjectId
+  user          User          @relation(fields: [userId], references: [id])
+  transactions  Transaction[]
+  budgets       Budget[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  @@index([userId])
-  @@index([categoryGroup])
+  @@unique([userId, name, categoryGroup])
 }
 
 model Transaction {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String   @db.ObjectId
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type          String   // "income" | "expense" | "investment"
-  categoryGroup String   // "Income" | "Expense" | "Investment"
+  type          String // income, expense, investment
+  amount        Float
+  date          DateTime
+  notes         String?
+  categoryGroup String
   category      String
   subCategory   String?
-  amount        Float
-  date          String   // YYYY-MM-DD format
-  notes         String?
+  userId        String   @db.ObjectId
+  user          User     @relation(fields: [userId], references: [id])
+  categoryId    String?  @db.ObjectId
+  categoryRel   Category? @relation(fields: [categoryId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([userId])
-  @@index([type])
-  @@index([date])
+  @@index([userId, date])
+}
+
+model Budget {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount     Float
+  month      String // Format: YYYY-MM
+  categoryId String   @db.ObjectId
+  category   Category @relation(fields: [categoryId], references: [id])
+  userId     String   @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, categoryId, month])
 }

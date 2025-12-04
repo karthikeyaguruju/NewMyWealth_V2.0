@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/jwt';
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
 
         if (!decoded) {
             return NextResponse.json(
@@ -26,11 +26,9 @@ export async function GET(request: NextRequest) {
             where: { id: decoded.userId },
             select: {
                 id: true,
-                fullName: true,
                 email: true,
+                fullName: true,
                 createdAt: true,
-                enableBudgetAlerts: true,
-                monthlyBudget: true,
             },
         });
 

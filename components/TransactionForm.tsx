@@ -23,7 +23,9 @@ export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: Tra
         category: '',
         amount: '',
         date: new Date().toISOString().split('T')[0],
+
         notes: '',
+        categoryId: '',
     });
     const [categories, setCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -31,13 +33,19 @@ export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: Tra
 
     useEffect(() => {
         if (transaction) {
+            // Extract date in YYYY-MM-DD format from ISO string or use as-is if already formatted
+            let dateStr = transaction.date;
+            if (dateStr && dateStr.includes('T')) {
+                dateStr = dateStr.split('T')[0];
+            }
             setFormData({
                 type: transaction.type,
                 categoryGroup: transaction.categoryGroup,
                 category: transaction.category,
                 amount: transaction.amount.toString(),
-                date: transaction.date,
+                date: dateStr,
                 notes: transaction.notes || '',
+                categoryId: transaction.categoryId || '',
             });
         }
     }, [transaction]);
@@ -103,6 +111,7 @@ export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: Tra
             }
 
             showToast('success', transaction ? 'Transaction updated successfully' : 'Transaction added successfully');
+            setLoading(false);
             onSuccess();
             onClose();
             resetForm();
@@ -121,7 +130,9 @@ export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: Tra
             category: '',
             amount: '',
             date: new Date().toISOString().split('T')[0],
+
             notes: '',
+            categoryId: '',
         });
     };
 
@@ -185,7 +196,14 @@ export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: Tra
                 <Select
                     label="Category"
                     value={formData.category}
-                    onChange={(value) => setFormData({ ...formData, category: value })}
+                    onChange={(value) => {
+                        const selectedCat = categories.find(c => c.name === value);
+                        setFormData({
+                            ...formData,
+                            category: value,
+                            categoryId: selectedCat?.id
+                        });
+                    }}
                     options={categoryOptions}
                     placeholder="Select Category"
                 />

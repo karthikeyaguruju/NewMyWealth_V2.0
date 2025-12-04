@@ -1,13 +1,13 @@
+// Investments API route
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/jwt';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 
 async function getUserId(request: NextRequest): Promise<string | null> {
     const token = request.cookies.get('token')?.value;
     if (!token) return null;
-
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     return decoded?.userId || null;
 }
 
@@ -15,14 +15,17 @@ async function getUserId(request: NextRequest): Promise<string | null> {
 export async function GET(request: NextRequest) {
     try {
         const userId = await getUserId(request);
-
         if (!userId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
         const { searchParams } = new URL(request.url);
-        const startDate = searchParams.get('startDate');
-        const endDate = searchParams.get('endDate');
+        const startDateStr = searchParams.get('startDate');
+        const endDateStr = searchParams.get('endDate');
+
+        // Convert query strings to Date objects
+        const startDate = startDateStr ? new Date(startDateStr) : undefined;
+        const endDate = endDateStr ? new Date(endDateStr) : undefined;
 
         // Get all investment transactions
         const investments = await prisma.transaction.findMany({
@@ -67,10 +70,12 @@ export async function GET(request: NextRequest) {
         const today = new Date();
 
         // Calculate this month's and last month's totals for growth
-        const thisMonthStart = format(startOfMonth(today), 'yyyy-MM-dd');
+        // Use Date objects for comparison since t.date is a Date object
+        const thisMonthStart = startOfMonth(today);
+
         const lastMonthDate = subMonths(today, 1);
-        const lastMonthStart = format(startOfMonth(lastMonthDate), 'yyyy-MM-dd');
-        const lastMonthEnd = format(endOfMonth(lastMonthDate), 'yyyy-MM-dd');
+        const lastMonthStart = startOfMonth(lastMonthDate);
+        const lastMonthEnd = endOfMonth(lastMonthDate);
 
         const thisMonthTotal = investments
             .filter(t => t.date >= thisMonthStart)
@@ -86,8 +91,8 @@ export async function GET(request: NextRequest) {
 
         for (let i = historyMonths - 1; i >= 0; i--) {
             const monthDate = subMonths(today, i);
-            const monthStart = format(startOfMonth(monthDate), 'yyyy-MM-dd');
-            const monthEnd = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+            const monthStart = startOfMonth(monthDate);
+            const monthEnd = endOfMonth(monthDate);
             const monthLabel = format(monthDate, 'MMM yyyy');
 
             const monthInvestments = investments.filter(

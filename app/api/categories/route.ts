@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/jwt';
 
 // Helper to get user ID from token
 async function getUserId(request: NextRequest): Promise<string | null> {
     const token = request.cookies.get('token')?.value;
     if (!token) return null;
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     return decoded?.userId || null;
 }
 
