@@ -60,6 +60,23 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
+        // Delete all related records first (in order to avoid foreign key constraints)
+        // 1. Delete all transactions for this user
+        await prisma.transaction.deleteMany({
+            where: { userId },
+        });
+
+        // 2. Delete all budgets for this user
+        await prisma.budget.deleteMany({
+            where: { userId },
+        });
+
+        // 3. Delete all categories for this user
+        await prisma.category.deleteMany({
+            where: { userId },
+        });
+
+        // 4. Finally, delete the user
         await prisma.user.delete({
             where: { id: userId },
         });
