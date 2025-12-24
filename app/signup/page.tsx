@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, User, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useToast } from '@/contexts/ToastContext';
+import { SwipeButton } from '@/components/ui/SwipeButton';
 
 export default function SignupPage() {
     const router = useRouter();
@@ -21,13 +21,16 @@ export default function SignupPage() {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         setErrors({});
         setLoading(true);
 
         // Client-side validation
         const newErrors: Record<string, string> = {};
+
+        if (!formData.fullName) newErrors.fullName = 'Full name is required';
+        if (!formData.email) newErrors.email = 'Email is required';
 
         if (formData.password.length < 6) {
             newErrors.password = 'Password must be at least 6 characters';
@@ -70,6 +73,8 @@ export default function SignupPage() {
             setLoading(false);
         }
     };
+
+    const isFormValid = formData.fullName && formData.email && formData.password && formData.confirmPassword && (formData.password === formData.confirmPassword) && formData.password.length >= 6;
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
@@ -137,15 +142,15 @@ export default function SignupPage() {
                         required
                     />
 
-                    <Button
-                        type="submit"
-                        variant="primary"
-                        size="lg"
-                        loading={loading}
-                        className="w-full"
-                    >
-                        Create Account
-                    </Button>
+                    <div className="pt-2">
+                        <SwipeButton
+                            text="Swipe to Create Account"
+                            loadingText="Creating Account..."
+                            isLoading={loading}
+                            onComplete={() => handleSubmit()}
+                            disabled={!isFormValid}
+                        />
+                    </div>
                 </form>
 
                 <div className="mt-6 text-center">

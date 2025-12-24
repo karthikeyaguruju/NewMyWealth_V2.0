@@ -9,6 +9,8 @@ import { DatePicker } from '@/components/ui/DatePicker';
 import { useToast } from '@/contexts/ToastContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
 
+import { SwipeButton } from '@/components/ui/SwipeButton';
+
 interface TransactionFormProps {
     isOpen: boolean;
     onClose: () => void;
@@ -83,8 +85,15 @@ export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: Tra
         }));
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+
+        // Validation check
+        if (!formData.amount || !formData.category) {
+            showToast('error', 'Please fill in all required fields');
+            return;
+        }
+
         setError('');
         setLoading(true);
 
@@ -239,15 +248,15 @@ export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: Tra
                     />
                 </div>
 
-                {/* Submit Button */}
+                {/* Swipe to Submit Button */}
                 <div className="pt-2">
-                    <Button
-                        type="submit"
-                        loading={loading}
-                        className="w-full py-3 text-base font-semibold"
-                    >
-                        {transaction ? 'Update Transaction' : 'Add Transaction'}
-                    </Button>
+                    <SwipeButton
+                        text={transaction ? "Swipe to Update" : "Swipe to Add Transaction"}
+                        loadingText={transaction ? "Updating..." : "Adding..."}
+                        isLoading={loading}
+                        onComplete={() => handleSubmit()}
+                        disabled={!formData.amount || !formData.category}
+                    />
                 </div>
             </form>
         </Modal>
