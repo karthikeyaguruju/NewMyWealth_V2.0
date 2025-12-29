@@ -68,22 +68,17 @@ export function TopBar({ onMenuClick }: TopBarProps) {
     const displayName = getFirstName(userName);
 
     return (
-        <header className="glass-card mb-6 p-4 flex items-center justify-between sticky top-0 z-10 mx-4 mt-4 md:mx-0 md:mt-0 md:rounded-none md:border-x-0 md:border-t-0 md:glass-card-none md:bg-white/80 md:dark:bg-gray-900/80 md:backdrop-blur-xl">
+        <header className="glass sticky top-4 z-20 mx-6 mt-4 md:mx-8 md:mt-6 rounded-2xl border border-white/20 dark:border-white/10 p-4 flex items-center justify-between transition-all duration-300 shadow-lg">
             <div className="flex items-center gap-4">
                 <button
                     onClick={onMenuClick}
-                    className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    className="md:hidden p-2 hover:bg-white/20 rounded-xl transition-colors"
                 >
                     <Menu size={24} className="text-gray-700 dark:text-gray-300" />
                 </button>
-                <div>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white hidden md:block">
-                        {greeting}, <span className="text-primary-600 dark:text-primary-400">{displayName}</span>! 👋
-                    </h2>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white md:hidden">
-                        Hi, <span className="text-primary-600 dark:text-primary-400">{displayName}</span>! 👋
-                    </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{currentDate}</p>
+                <div className="hidden md:flex flex-col">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary-600 dark:text-primary-400">Overview</p>
+                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400">{currentDate}</p>
                 </div>
             </div>
 

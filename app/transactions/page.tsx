@@ -12,6 +12,7 @@ import { Plus, Pencil, Trash2, Search, Filter, X, Calendar, ChevronLeft, Chevron
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useToast } from '@/contexts/ToastContext';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Transaction {
     id: string;
@@ -28,6 +29,10 @@ const TERMINABLE_CATEGORIES = ['Fixed Deposits', 'Bonds'];
 
 export default function TransactionsPage() {
     const { showToast } = useToast();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const initialType = searchParams.get('type');
+
     const { logTransactionDeleted, logInvestmentTerminated } = useActivityLog();
     // Core state
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -40,15 +45,9 @@ export default function TransactionsPage() {
     const [maturityAmount, setMaturityAmount] = useState('');
     const [terminateLoading, setTerminateLoading] = useState(false);
 
-    // Pagination state
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
-    const ITEMS_PER_PAGE = 10;
-
     // Filter state
     const [filters, setFilters] = useState({
-        type: '',
+        type: initialType && ['income', 'expense', 'investment'].includes(initialType) ? initialType : '',
         category: '',
         startDate: '',
         endDate: '',
@@ -58,6 +57,22 @@ export default function TransactionsPage() {
         sortBy: 'date',
         order: 'desc',
     });
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const ITEMS_PER_PAGE = 10;
+
+    // Handle auto-opening form if type is provided in URL
+    useEffect(() => {
+        if (initialType && ['income', 'expense', 'investment'].includes(initialType)) {
+            setIsFormOpen(true);
+            // Clear search param to prevent re-opening on refresh/navigation back
+            const newUrl = window.location.pathname;
+            window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+        }
+    }, [initialType]);
 
     // Load transactions on mount and when filters/page change
     useEffect(() => {
@@ -523,6 +538,7 @@ export default function TransactionsPage() {
                     onClose={handleFormClose}
                     onSuccess={handleFormSuccess}
                     transaction={editingTransaction}
+                    initialType={initialType && ['income', 'expense', 'investment'].includes(initialType) ? initialType : undefined}
                 />
 
                 {/* Terminate Investment Modal */}

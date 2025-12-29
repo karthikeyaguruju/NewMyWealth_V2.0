@@ -4,25 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { MetricCard } from '@/components/MetricCard';
 import { startOfMonth, endOfMonth, format, subMonths, subYears } from 'date-fns';
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
-    LineChart,
-    Line,
-} from 'recharts';
-import {
-    TrendingDown,
-    TrendingUp,
-} from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { TrendingDown, TrendingUp, BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { MonthlyTrends } from '@/components/Dashboard/MonthlyTrends';
+import { FinancialInsights } from '@/components/Dashboard/FinancialInsights';
 
 interface AnalyticsData {
     metrics: {
@@ -43,9 +29,26 @@ interface AnalyticsData {
     investmentAllocation: any[];
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+const COLORS = ['#3b82f6', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#fb7185'];
 
 type TimeRange = '1M' | '3M' | '6M' | '1Y';
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="glass p-4 border-none shadow-2xl rounded-2xl">
+                <p className="text-sm font-black text-gray-900 dark:text-white mb-2">{label || payload[0].name}</p>
+                {payload.map((entry: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between gap-4 text-xs">
+                        <span className="font-bold uppercase tracking-wider" style={{ color: entry.color || entry.fill }}>{entry.name}:</span>
+                        <span className="font-black text-gray-900 dark:text-white">₹{entry.value.toLocaleString()}</span>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+    return null;
+};
 
 export default function AnalyticsPage() {
     const [timeRange, setTimeRange] = useState<TimeRange>('6M');
@@ -59,8 +62,6 @@ export default function AnalyticsPage() {
     const fetchAnalytics = async () => {
         try {
             setLoading(true);
-
-            // Calculate dates based on time range
             const endDate = new Date();
             let startDate = new Date();
             let historyMonths = 6;
@@ -71,7 +72,7 @@ export default function AnalyticsPage() {
                     historyMonths = 1;
                     break;
                 case '3M':
-                    startDate = subMonths(endDate, 2); // Current + 2 prev = 3
+                    startDate = subMonths(endDate, 2);
                     historyMonths = 3;
                     break;
                 case '6M':
@@ -102,32 +103,46 @@ export default function AnalyticsPage() {
     if (loading || !analytics) {
         return (
             <DashboardLayout>
-                <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                    <div className="relative w-16 h-16">
+                        <div className="absolute inset-0 border-4 border-primary-100 dark:border-primary-900/30 rounded-full"></div>
+                        <div className="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Running financial simulations...</p>
                 </div>
             </DashboardLayout>
         );
     }
 
-    const metrics = analytics.metrics;
+    const { metrics } = analytics;
 
     return (
         <DashboardLayout>
-            <div className="space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="max-w-7xl mx-auto space-y-8 pb-12">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Analytics</h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Detailed insights into your financial patterns</p>
+                        <div className="flex items-center gap-3 mb-1">
+                            <Activity className="text-primary-500 animate-pulse" size={28} />
+                            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                                Financial <span className="text-gradient">Insights</span>
+                            </h1>
+                        </div>
+                        <p className="text-gray-500 dark:text-gray-400">
+                            Deep dive into your spending habits and wealth patterns.
+                        </p>
                     </div>
-                    <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-lg inline-flex">
+                    <div className="glass p-1 rounded-2xl flex items-center shadow-lg">
                         {(['1M', '3M', '6M', '1Y'] as TimeRange[]).map((range) => (
                             <button
                                 key={range}
                                 onClick={() => setTimeRange(range)}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${timeRange === range
-                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                    }`}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-black transition-all duration-300 uppercase tracking-widest",
+                                    timeRange === range
+                                        ? "bg-primary-600 text-white shadow-md"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                )}
                             >
                                 {range}
                             </button>
@@ -135,314 +150,119 @@ export default function AnalyticsPage() {
                     </div>
                 </div>
 
-                {/* Finance Overview Chart */}
-                <div className="glass-card p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-                        {timeRange === '1Y' ? '1-Year' : `${timeRange}-Month`} Trend
-                    </h3>
-                    <div className="h-96">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={analytics.monthlyData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} vertical={false} />
-                                <XAxis
-                                    dataKey="month"
-                                    stroke="#6B7280"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    dy={10}
-                                />
-                                <YAxis
-                                    stroke="#6B7280"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickFormatter={(value) => `₹${value}`}
-                                />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                />
-                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                                <Line
-                                    type="monotone"
-                                    dataKey="income"
-                                    name="Income"
-                                    stroke="#10B981"
-                                    strokeWidth={2}
-                                    dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                                    activeDot={{ r: 6 }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="expense"
-                                    name="Expense"
-                                    stroke="#EF4444"
-                                    strokeWidth={2}
-                                    dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                                    activeDot={{ r: 6 }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="investment"
-                                    name="Investment"
-                                    stroke="#8B5CF6"
-                                    strokeWidth={2}
-                                    dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                                    activeDot={{ r: 6 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
+                {/* Metrics Horizontal Scroll on Mobile */}
+                <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 pb-4 md:pb-0 scrollbar-hide snap-x snap-mandatory">
+                    <div className="min-w-[280px] snap-center">
+                        <MetricCard
+                            title="Total Income"
+                            value={metrics.totalIncome}
+                            icon={TrendingUp}
+                            colorScheme="income"
+                            trend={metrics.incomeGrowth}
+                        />
+                    </div>
+                    <div className="min-w-[280px] snap-center">
+                        <MetricCard
+                            title="Total Expenses"
+                            value={metrics.totalExpenses}
+                            icon={TrendingDown}
+                            colorScheme="expense"
+                            trend={metrics.expenseGrowth}
+                        />
+                    </div>
+                    <div className="min-w-[280px] snap-center">
+                        <MetricCard
+                            title="Total Investments"
+                            value={metrics.totalInvestments}
+                            icon={BarChart3}
+                            colorScheme="investment"
+                            trend={metrics.investmentGrowth}
+                        />
+                    </div>
+                    <div className="min-w-[280px] snap-center">
+                        <MetricCard
+                            title="Total Savings"
+                            value={metrics.netSavings}
+                            icon={Activity}
+                            colorScheme="primary"
+                        />
                     </div>
                 </div>
 
-                {/* Top Row: Income, Expenses, Investments */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Total Income */}
-                    <div className="glass-card p-6 flex flex-col justify-between h-64">
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-gray-500 dark:text-gray-400 font-medium">Total Income</span>
-                                <div className={`flex items-center text-sm font-medium px-2 py-1 rounded-full ${metrics.incomeGrowth >= 0 ? 'text-green-500 bg-green-50 dark:bg-green-900/20' : 'text-red-500 bg-red-50 dark:bg-red-900/20'}`}>
-                                    {metrics.incomeGrowth >= 0 ? <TrendingUp size={14} className="mr-1" /> : <TrendingDown size={14} className="mr-1" />}
-                                    {Math.abs(metrics.incomeGrowth).toFixed(1)}%
-                                </div>
-                            </div>
-                            <h2 className="text-3xl font-bold text-green-600 dark:text-green-400">
-                                ₹{metrics.totalIncome.toLocaleString()}
-                            </h2>
-                        </div>
-                        <div className="flex-1 flex items-center justify-center relative">
-                            {metrics.totalIncome > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={analytics.incomeBreakdown}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={40}
-                                            outerRadius={60}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {analytics.incomeBreakdown.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <p className="text-gray-400 text-sm">No income data</p>
-                            )}
-                        </div>
+                {/* Dashboard Level Charts - Reusing Components for consistency */}
+                <div className="pt-4">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="h-8 w-1.5 bg-primary-600 rounded-full"></div>
+                        <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Performance Overview</h2>
                     </div>
-
-                    {/* Total Expenses */}
-                    <div className="glass-card p-6 flex flex-col justify-between h-64">
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-gray-500 dark:text-gray-400 font-medium">Total Expenses</span>
-                                <div className={`flex items-center text-sm font-medium px-2 py-1 rounded-full ${metrics.expenseGrowth <= 0 ? 'text-green-500 bg-green-50 dark:bg-green-900/20' : 'text-red-500 bg-red-50 dark:bg-red-900/20'}`}>
-                                    {metrics.expenseGrowth <= 0 ? <TrendingDown size={14} className="mr-1" /> : <TrendingUp size={14} className="mr-1" />}
-                                    {Math.abs(metrics.expenseGrowth).toFixed(1)}%
-                                </div>
-                            </div>
-                            <h2 className="text-3xl font-bold text-red-600 dark:text-red-400">
-                                ₹{metrics.totalExpenses.toLocaleString()}
-                            </h2>
-                        </div>
-                        <div className="flex-1 flex items-center justify-center relative">
-                            {metrics.totalExpenses > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={analytics.expenseBreakdown}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={40}
-                                            outerRadius={60}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {analytics.expenseBreakdown.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <p className="text-gray-400 text-sm">No expense data</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Total Investments */}
-                    <div className="glass-card p-6 flex flex-col justify-between h-64">
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-gray-500 dark:text-gray-400 font-medium">Total Investments</span>
-                                <div className={`flex items-center text-sm font-medium px-2 py-1 rounded-full ${metrics.investmentGrowth >= 0 ? 'text-green-500 bg-green-50 dark:bg-green-900/20' : 'text-red-500 bg-red-50 dark:bg-red-900/20'}`}>
-                                    {metrics.investmentGrowth >= 0 ? <TrendingUp size={14} className="mr-1" /> : <TrendingDown size={14} className="mr-1" />}
-                                    {Math.abs(metrics.investmentGrowth).toFixed(1)}%
-                                </div>
-                            </div>
-                            <h2 className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                                ₹{metrics.totalInvestments.toLocaleString()}
-                            </h2>
-                        </div>
-                        <div className="flex-1 flex items-center justify-center relative">
-                            {metrics.totalInvestments > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={analytics.investmentAllocation}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={40}
-                                            outerRadius={60}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {analytics.investmentAllocation.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <p className="text-gray-400 text-sm">No investment data</p>
-                            )}
-                        </div>
-                    </div>
+                    <MonthlyTrends data={analytics.monthlyData} />
                 </div>
 
-                {/* Second Row: Savings & Savings Rate */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="glass-card p-6">
-                        <span className="text-gray-500 dark:text-gray-400 font-medium block mb-2">Total Savings</span>
-                        <h2 className="text-3xl font-bold text-green-600 dark:text-green-400">
-                            ₹{metrics.netSavings.toLocaleString()}
-                        </h2>
+                <div className="pt-4">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="h-8 w-1.5 bg-primary-600 rounded-full"></div>
+                        <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Distribution Metrics</h2>
                     </div>
-                    <div className="glass-card p-6">
-                        <span className="text-gray-500 dark:text-gray-400 font-medium block mb-2">Savings Rate</span>
-                        <h2 className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                            {metrics.savingsRate.toFixed(1)}%
-                        </h2>
-                    </div>
+                    <FinancialInsights
+                        expenseData={analytics.expenseBreakdown}
+                        investmentData={analytics.investmentAllocation}
+                        savingsRate={metrics.savingsRate}
+                    />
                 </div>
 
-                {/* Growth Statistics */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="glass-card p-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Income Growth</span>
-                            <div className={`p-2 rounded-full ${metrics.incomeGrowth >= 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-600' : 'bg-red-100 dark:bg-red-900/20 text-red-600'}`}>
-                                {metrics.incomeGrowth >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-                            </div>
+                {/* Additional Detailed Breakdowns for Analytics Page */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Income Sources breakdown */}
+                    <div className="glass-card p-8">
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Income Sources</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Detailed breakdown of revenue streams</p>
                         </div>
-                        <div className="flex items-baseline gap-2">
-                            <h3 className={`text-2xl font-bold ${metrics.incomeGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {Math.abs(metrics.incomeGrowth).toFixed(1)}%
-                            </h3>
-                            <span className="text-sm text-gray-500">vs last month</span>
-                        </div>
-                    </div>
-
-                    <div className="glass-card p-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Expense Growth</span>
-                            <div className={`p-2 rounded-full ${metrics.expenseGrowth <= 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-600' : 'bg-red-100 dark:bg-red-900/20 text-red-600'}`}>
-                                {metrics.expenseGrowth <= 0 ? <TrendingDown size={20} /> : <TrendingUp size={20} />}
-                            </div>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <h3 className={`text-2xl font-bold ${metrics.expenseGrowth <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {Math.abs(metrics.expenseGrowth).toFixed(1)}%
-                            </h3>
-                            <span className="text-sm text-gray-500">vs last month</span>
-                        </div>
-                    </div>
-
-                    <div className="glass-card p-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Investment Growth</span>
-                            <div className={`p-2 rounded-full ${metrics.investmentGrowth >= 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-600' : 'bg-red-100 dark:bg-red-900/20 text-red-600'}`}>
-                                {metrics.investmentGrowth >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-                            </div>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <h3 className={`text-2xl font-bold ${metrics.investmentGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {Math.abs(metrics.investmentGrowth).toFixed(1)}%
-                            </h3>
-                            <span className="text-sm text-gray-500">vs last month</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Existing Detailed Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Expense Breakdown */}
-                    <div className="glass-card p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-                            Expense Breakdown
-                        </h3>
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={analytics.expenseBreakdown}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={100}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {analytics.expenseBreakdown.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        formatter={(value: number) => `₹${value.toLocaleString()}`}
-                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                <BarChart data={analytics.incomeBreakdown} layout="vertical" margin={{ left: 10, right: 30 }}>
+                                    <XAxis type="number" hide />
+                                    <YAxis
+                                        dataKey="name"
+                                        type="category"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fontSize: 12, fontWeight: 700, fill: '#6B7280' }}
+                                        width={100}
                                     />
-                                    <Legend />
-                                </PieChart>
+                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.02)' }} />
+                                    <Bar
+                                        dataKey="value"
+                                        fill="#10b981"
+                                        radius={[0, 10, 10, 0]}
+                                        barSize={24}
+                                        background={{ fill: 'rgba(0,0,0,0.03)', radius: 10 }}
+                                    />
+                                </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Investment Allocation */}
-                    <div className="glass-card p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-                            Investment Allocation
-                        </h3>
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={analytics.investmentAllocation}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={100}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {analytics.investmentAllocation.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        formatter={(value: number) => `₹${value.toLocaleString()}`}
-                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                    />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                    <div className="glass-card p-8 flex flex-col items-center justify-center text-center space-y-4">
+                        <div className="p-4 bg-primary-100 dark:bg-primary-900/30 rounded-full">
+                            <PieChartIcon className="text-primary-600 dark:text-primary-400" size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Savings Strategy</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto mt-2">
+                                Your current savings rate is <span className="text-primary-600 font-bold">{metrics.savingsRate.toFixed(1)}%</span>.
+                                {metrics.savingsRate > 20 ? " You're doing better than 75% of our users!" : " Increasing this by 5% could mean retiring 3 years earlier."}
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 w-full pt-4">
+                            <div className="p-4 rounded-3xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100/20">
+                                <p className="text-[10px] font-black uppercase text-emerald-600 mb-1">Monthly Surplus</p>
+                                <p className="text-lg font-black text-gray-900 dark:text-white">₹{metrics.netSavings.toLocaleString()}</p>
+                            </div>
+                            <div className="p-4 rounded-3xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100/20">
+                                <p className="text-[10px] font-black uppercase text-blue-600 mb-1">Inv. Capacity</p>
+                                <p className="text-lg font-black text-gray-900 dark:text-white">₹{(metrics.netSavings * 0.7).toLocaleString()}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -450,3 +270,4 @@ export default function AnalyticsPage() {
         </DashboardLayout>
     );
 }
+

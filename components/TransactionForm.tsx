@@ -16,9 +16,10 @@ interface TransactionFormProps {
     onClose: () => void;
     onSuccess: () => void;
     transaction?: any;
+    initialType?: string;
 }
 
-export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: TransactionFormProps) {
+export function TransactionForm({ isOpen, onClose, onSuccess, transaction, initialType }: TransactionFormProps) {
     const { showToast } = useToast();
     const { logTransactionAdded, logTransactionUpdated } = useActivityLog();
     const [formData, setFormData] = useState({
@@ -59,6 +60,12 @@ export function TransactionForm({ isOpen, onClose, onSuccess, transaction }: Tra
         fetchCategories(formData.categoryGroup);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.categoryGroup]);
+
+    useEffect(() => {
+        if (isOpen && initialType && !transaction) {
+            handleTypeChange(initialType);
+        }
+    }, [isOpen, initialType, transaction]);
 
     const fetchCategories = async (group: string) => {
         try {

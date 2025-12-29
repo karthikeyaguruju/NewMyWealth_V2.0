@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
+import { MetricCard } from '@/components/MetricCard';
 import { startOfMonth, endOfMonth, subMonths, subYears, format } from 'date-fns';
 import {
     PieChart,
@@ -14,12 +15,11 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    LineChart,
-    Line,
     Area,
     AreaChart,
 } from 'recharts';
-import { Target, TrendingUp, Layers, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Target, TrendingUp, Layers, PieChart as PieChartIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface InvestmentData {
     totalInvested: number;
@@ -30,11 +30,26 @@ interface InvestmentData {
     monthlyData: { month: string; amount: number; count: number }[];
 }
 
-const COLORS = ['#000000', '#333333', '#666666', '#999999', '#CCCCCC']; // Black/Grey scale for donut as per image
-const PURPLE_GRADIENT = ['#8B5CF6', '#A78BFA'];
-const BLUE_GRADIENT = ['#3B82F6', '#60A5FA'];
+const COLORS = ['#3b82f6', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#fb7185'];
 
 type TimeRange = '1M' | '3M' | '6M' | '1Y' | 'ALL';
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="glass p-4 border-none shadow-2xl rounded-2xl">
+                <p className="text-sm font-black text-gray-900 dark:text-white mb-2">{label}</p>
+                {payload.map((entry: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between gap-4 text-xs">
+                        <span className="font-bold uppercase tracking-wider" style={{ color: entry.color || entry.fill }}>{entry.name}:</span>
+                        <span className="font-black text-gray-900 dark:text-white">₹{entry.value.toLocaleString()}</span>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+    return null;
+};
 
 export default function InvestmentsPage() {
     const [timeRange, setTimeRange] = useState<TimeRange>('6M');
@@ -79,9 +94,6 @@ export default function InvestmentsPage() {
                 const formattedEndDate = format(endOfMonth(endDate), 'yyyy-MM-dd');
                 queryParams = `?startDate=${formattedStartDate}&endDate=${formattedEndDate}&historyMonths=${historyMonths}`;
             } else {
-                // For ALL, we might want to show a longer trend, e.g., 12 months or more
-                // But for now let's default to 12 months trend if ALL is selected, or handle it in API
-                // Let's pass a large historyMonths for ALL
                 queryParams = `?historyMonths=12`;
             }
 
@@ -101,34 +113,21 @@ export default function InvestmentsPage() {
         }
     };
 
-    if (loading) {
+    if (loading || !data) {
         return (
             <DashboardLayout>
-                <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                    <div className="relative w-16 h-16">
+                        <div className="absolute inset-0 border-4 border-primary-100 dark:border-primary-900/30 rounded-full"></div>
+                        <div className="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Analyzing portfolio...</p>
                 </div>
             </DashboardLayout>
         );
     }
 
-    if (error || !data) {
-        return (
-            <DashboardLayout>
-                <div className="flex flex-col items-center justify-center h-64 text-red-500">
-                    <p className="text-lg font-semibold">Error loading investments</p>
-                    <p className="text-sm">{error || 'No data available'}</p>
-                    <button
-                        onClick={fetchInvestments}
-                        className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-                    >
-                        Retry
-                    </button>
-                </div>
-            </DashboardLayout>
-        );
-    }
-
-    // Calculate cumulative trend for the line chart
+    // Calculate cumulative trend
     let cumulativeAmount = 0;
     const trendData = (data.monthlyData || []).map(item => {
         cumulativeAmount += item.amount;
@@ -137,25 +136,31 @@ export default function InvestmentsPage() {
 
     return (
         <DashboardLayout>
-            <div className="space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="max-w-7xl mx-auto space-y-8 pb-12">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            Investment Analysis
-                        </h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            Track and analyze your investment portfolio performance
+                        <div className="flex items-center gap-3 mb-1">
+                            <Target className="text-primary-500 animate-pulse" size={28} />
+                            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                                Investment <span className="text-gradient">Portfolio</span>
+                            </h1>
+                        </div>
+                        <p className="text-gray-500 dark:text-gray-400">
+                            Detailed performance analysis of your wealth builders.
                         </p>
                     </div>
-                    <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-lg inline-flex">
+                    <div className="glass p-1 rounded-2xl flex items-center shadow-lg">
                         {(['1M', '3M', '6M', '1Y', 'ALL'] as TimeRange[]).map((range) => (
                             <button
                                 key={range}
                                 onClick={() => setTimeRange(range)}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${timeRange === range
-                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                    }`}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-black transition-all duration-300 uppercase tracking-widest",
+                                    timeRange === range
+                                        ? "bg-primary-600 text-white shadow-md"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                )}
                             >
                                 {range}
                             </button>
@@ -163,80 +168,46 @@ export default function InvestmentsPage() {
                     </div>
                 </div>
 
-                {/* Top Metrics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Total Invested */}
-                    <div className="glass-card p-6 relative overflow-hidden">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Total Invested
-                                </p>
-                                <h2 className="text-4xl font-bold text-purple-600 dark:text-purple-400 mt-2">
-                                    ₹{data.totalInvested.toLocaleString()}
-                                </h2>
-                                <p className="text-sm text-gray-400 mt-1">
-                                    {timeRange === 'ALL' ? 'All time' : `Last ${timeRange}`}
-                                </p>
-                            </div>
-                            <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-full">
-                                <Target className="text-purple-600 dark:text-purple-400" size={24} />
-                            </div>
-                        </div>
+                {/* Metrics Horizontal Scroll on Mobile */}
+                <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-6 pb-4 md:pb-0 scrollbar-hide snap-x snap-mandatory">
+                    <div className="min-w-[280px] snap-center flex-1">
+                        <MetricCard
+                            title="Total Invested"
+                            value={data.totalInvested}
+                            icon={Target}
+                            colorScheme="investment"
+                        />
                     </div>
-
-                    {/* Monthly Growth */}
-                    <div className="glass-card p-6 relative overflow-hidden">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Monthly Growth
-                                </p>
-                                <h2 className={`text-4xl font-bold mt-2 ${data.monthlyGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {data.monthlyGrowth > 0 ? '+' : ''}{data.monthlyGrowth.toFixed(1)}%
-                                </h2>
-                                <p className="text-sm text-gray-400 mt-1">vs previous month</p>
-                            </div>
-                            <div className={`p-2 rounded-full ${data.monthlyGrowth >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                                {data.monthlyGrowth >= 0 ? (
-                                    <ArrowUpRight className="text-green-500" size={24} />
-                                ) : (
-                                    <ArrowDownRight className="text-red-500" size={24} />
-                                )}
-                            </div>
-                        </div>
+                    <div className="min-w-[280px] snap-center flex-1">
+                        <MetricCard
+                            title="Monthly Growth"
+                            value={data.monthlyGrowth}
+                            icon={TrendingUp}
+                            format="percentage"
+                            colorScheme="primary"
+                            trend={data.monthlyGrowth}
+                        />
                     </div>
-
-                    {/* Categories */}
-                    <div className="glass-card p-6 relative overflow-hidden">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Categories
-                                </p>
-                                <h2 className="text-4xl font-bold text-gray-900 dark:text-white mt-2">
-                                    {data.categoryCount}
-                                </h2>
-                                <p className="text-sm text-gray-400 mt-1">Investment categories</p>
-                            </div>
-                            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-full">
-                                <Layers className="text-blue-500" size={24} />
-                            </div>
-                        </div>
+                    <div className="min-w-[280px] snap-center flex-1">
+                        <MetricCard
+                            title="Asset Classes"
+                            value={data.categoryCount}
+                            icon={Layers}
+                            format="number"
+                            colorScheme="income"
+                        />
                     </div>
                 </div>
 
-                {/* Charts Row 1 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Investment by Category */}
-                    <div className="glass-card p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                            Investment by Category
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            Distribution across different investment categories
-                        </p>
-                        <div className="h-80">
+                {/* Main Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Portfolio Allocation */}
+                    <div className="glass-card p-8 flex flex-col">
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Portfolio Allocation</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Diversification across asset classes</p>
+                        </div>
+                        <div className="h-80 relative">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
@@ -244,184 +215,126 @@ export default function InvestmentsPage() {
                                         cx="50%"
                                         cy="50%"
                                         innerRadius={80}
-                                        outerRadius={120}
-                                        paddingAngle={5}
+                                        outerRadius={110}
+                                        paddingAngle={8}
                                         dataKey="value"
                                         stroke="none"
                                     >
-                                        {data.allocation.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={index === 0 ? '#000000' : index === 1 ? '#333333' : '#666666'} />
+                                        {data.allocation.map((_, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="outline-none" />
                                         ))}
                                     </Pie>
-                                    <Tooltip
-                                        formatter={(value: number) => `₹${value.toLocaleString()}`}
-                                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: '#111827' }}
-                                        labelStyle={{ color: '#111827' }}
-                                        itemStyle={{ color: '#111827' }}
-                                    />
+                                    <Tooltip content={<CustomTooltip />} />
                                 </PieChart>
                             </ResponsiveContainer>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                                <PieChartIcon className="mx-auto text-gray-300 dark:text-gray-600 mb-1" size={24} />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Value</p>
+                                <p className="text-xl font-black text-gray-900 dark:text-white">₹{data.totalInvested.toLocaleString()}</p>
+                            </div>
                         </div>
-                        <div className="flex justify-center gap-6 mt-4">
+                        <div className="mt-8 grid grid-cols-2 gap-4">
                             {data.allocation.map((entry, index) => (
-                                <div key={index} className="flex items-center gap-2">
-                                    <div
-                                        className="w-3 h-3 rounded-sm"
-                                        style={{ backgroundColor: index === 0 ? '#000000' : index === 1 ? '#333333' : '#666666' }}
-                                    />
-                                    <span className="text-sm text-gray-600 dark:text-gray-300">
-                                        {entry.name}: ₹{entry.value.toLocaleString()}
-                                    </span>
+                                <div key={index} className="flex items-center gap-3 p-3 rounded-2xl bg-white/30 dark:bg-gray-800/20 border border-white/10 group">
+                                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-xs font-bold text-gray-500 truncate">{entry.name}</span>
+                                        <span className="text-sm font-black text-gray-900 dark:text-white">₹{entry.value.toLocaleString()}</span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Monthly Investment Amount */}
-                    <div className="glass-card p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                            Monthly Investment Amount
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            Investment amounts over the selected period
-                        </p>
-                        <div className="h-80">
+                    {/* Growth Trend */}
+                    <div className="glass-card p-8">
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Growth Projection</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Cumulative growth over the selected period</p>
+                        </div>
+                        <div className="h-96">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={data.monthlyData}>
+                                <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
                                     <defs>
-                                        <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#A78BFA" />
-                                            <stop offset="100%" stopColor="#8B5CF6" />
+                                        <linearGradient id="colorInvest" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                                     <XAxis
                                         dataKey="month"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fill: '#6B7280', fontSize: 12 }}
-                                        dy={10}
+                                        tick={{ fontSize: 12, fontWeight: 600, fill: '#6B7280' }}
                                     />
                                     <YAxis
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fill: '#6B7280', fontSize: 12 }}
-                                        tickFormatter={(value) => `₹${value >= 1000 ? `${value / 1000}k` : value}`}
+                                        tick={{ fontSize: 12, fontWeight: 600, fill: '#6B7280' }}
+                                        tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                                        width={50}
                                     />
-                                    <Tooltip
-                                        cursor={{ fill: 'transparent' }}
-                                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: '#111827' }}
-                                        labelStyle={{ color: '#111827' }}
-                                        itemStyle={{ color: '#111827' }}
-                                        formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Amount']}
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="cumulative"
+                                        name="Cumulative Invested"
+                                        stroke="#8b5cf6"
+                                        fillOpacity={1}
+                                        fill="url(#colorInvest)"
+                                        strokeWidth={4}
                                     />
-                                    <Bar
-                                        dataKey="amount"
-                                        fill="url(#purpleGradient)"
-                                        radius={[4, 4, 0, 0]}
-                                        barSize={40}
-                                    />
-                                </BarChart>
+                                </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
 
-                {/* Charts Row 2 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Investment Trend */}
-                    <div className="glass-card p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                            Investment Trend
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            Trend analysis over the selected period
-                        </p>
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={trendData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                    <XAxis
-                                        dataKey="month"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#6B7280', fontSize: 12 }}
-                                        dy={10}
-                                    />
-                                    <YAxis
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#6B7280', fontSize: 12 }}
-                                        tickFormatter={(value) => `₹${value >= 1000 ? `${value / 1000}k` : value}`}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: '#111827' }}
-                                        labelStyle={{ color: '#111827' }}
-                                        itemStyle={{ color: '#111827' }}
-                                        formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Cumulative']}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="cumulative"
-                                        stroke="#8B5CF6"
-                                        strokeWidth={3}
-                                        dot={{ r: 4, fill: '#8B5CF6', strokeWidth: 2, stroke: '#fff' }}
-                                        activeDot={{ r: 6 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
+                {/* Monthly Volume */}
+                <div className="glass-card p-8">
+                    <div className="mb-8">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Investment Velocity</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Capital deployed vs Transaction frequency</p>
                     </div>
-
-                    {/* Investment Frequency */}
-                    <div className="glass-card p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                            Investment Frequency
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            Number of investments per month
-                        </p>
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={data.monthlyData}>
-                                    <defs>
-                                        <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#60A5FA" />
-                                            <stop offset="100%" stopColor="#3B82F6" />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                    <XAxis
-                                        dataKey="month"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#6B7280', fontSize: 12 }}
-                                        dy={10}
-                                    />
-                                    <YAxis
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#6B7280', fontSize: 12 }}
-                                    />
-                                    <Tooltip
-                                        cursor={{ fill: 'transparent' }}
-                                        contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: '#111827' }}
-                                        labelStyle={{ color: '#111827' }}
-                                        itemStyle={{ color: '#111827' }}
-                                        formatter={(value: number) => [value, 'Investments']}
-                                    />
-                                    <Bar
-                                        dataKey="count"
-                                        fill="url(#blueGradient)"
-                                        radius={[4, 4, 0, 0]}
-                                        barSize={40}
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                    <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={data.monthlyData} margin={{ left: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                                <XAxis
+                                    dataKey="month"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fontSize: 12, fontWeight: 600, fill: '#6B7280' }}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fontSize: 12, fontWeight: 600, fill: '#6B7280' }}
+                                    tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                                    width={50}
+                                />
+                                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.02)' }} />
+                                <Bar
+                                    dataKey="amount"
+                                    name="Capital Invested"
+                                    fill="#4f46e5"
+                                    radius={[6, 6, 0, 0]}
+                                    barSize={32}
+                                />
+                                <Bar
+                                    dataKey="count"
+                                    name="Investments"
+                                    fill="#9333ea"
+                                    radius={[6, 6, 0, 0]}
+                                    barSize={32}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>
         </DashboardLayout>
     );
 }
+
