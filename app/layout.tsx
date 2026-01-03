@@ -10,6 +10,10 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
     title: 'My Finance Dashboard',
     description: 'Personal finance management application',
+    icons: {
+        icon: '/icon.svg',
+        apple: '/icon.svg',
+    },
 };
 
 export default function RootLayout({
