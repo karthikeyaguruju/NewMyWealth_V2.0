@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Pencil, Trash2, TrendingUp, TrendingDown, Layers } from 'lucide-react';
+import { Pencil, Trash2, TrendingUp, TrendingDown, Layers, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils';
 
@@ -12,6 +12,7 @@ interface Stock {
     quantity: number;
     buyPrice: number;
     sellPrice?: number | null;
+    currentPrice?: number | null;
     type: string;
     totalValue?: number | null;
 }
@@ -20,10 +21,12 @@ interface StockTableProps {
     stocks: Stock[];
     onEdit: (stock: Stock) => void;
     onDelete: (id: string) => void;
+    onRefresh?: () => void;
     loading?: boolean;
+    refreshing?: boolean;
 }
 
-export function StockTable({ stocks, onEdit, onDelete, loading }: StockTableProps) {
+export function StockTable({ stocks, onEdit, onDelete, onRefresh, loading, refreshing }: StockTableProps) {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -56,14 +59,34 @@ export function StockTable({ stocks, onEdit, onDelete, loading }: StockTableProp
                         <th className="text-left py-4 px-6 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Qty</th>
                         <th className="text-center py-4 px-6 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Type</th>
                         <th className="text-right py-4 px-6 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Buy Price</th>
-                        <th className="text-right py-4 px-6 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Sell Price</th>
+                        <th className="text-right py-4 px-6 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+                            <div className="flex items-center justify-end gap-2">
+                                Live Price
+                                {onRefresh && (
+                                    <button
+                                        onClick={onRefresh}
+                                        disabled={refreshing}
+                                        className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-colors disabled:opacity-50"
+                                        title="Refresh Live Prices"
+                                    >
+                                        <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+                                    </button>
+                                )}
+                            </div>
+                        </th>
+                        <th className="text-right py-4 px-6 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">P/L</th>
                         <th className="text-right py-4 px-6 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Total Value</th>
                         <th className="text-right py-4 px-6 font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {stocks.map((stock, idx) => {
-                        const totalValue = stock.quantity * stock.buyPrice;
+                        const investedValue = stock.quantity * stock.buyPrice;
+                        const currentValue = stock.currentPrice ? stock.quantity * stock.currentPrice : investedValue;
+                        const profitLoss = currentValue - investedValue;
+                        const profitLossPercent = investedValue > 0 ? (profitLoss / investedValue) * 100 : 0;
+                        const isProfit = profitLoss >= 0;
+
                         return (
                             <tr
                                 key={stock.id}
@@ -89,11 +112,32 @@ export function StockTable({ stocks, onEdit, onDelete, loading }: StockTableProp
                                 <td className="py-4 px-6 text-right text-sm font-semibold text-gray-900 dark:text-white">
                                     {formatCurrency(stock.buyPrice)}
                                 </td>
-                                <td className="py-4 px-6 text-right text-sm font-semibold text-gray-500 dark:text-gray-400">
-                                    {stock.sellPrice ? formatCurrency(stock.sellPrice) : '-'}
+                                <td className="py-4 px-6 text-right text-sm font-semibold">
+                                    {stock.currentPrice ? (
+                                        <span className="text-blue-600 dark:text-blue-400">
+                                            {formatCurrency(stock.currentPrice)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400 text-xs">Not fetched</span>
+                                    )}
+                                </td>
+                                <td className="py-4 px-6 text-right">
+                                    {stock.currentPrice ? (
+                                        <div className="flex flex-col items-end">
+                                            <span className={`text-sm font-bold flex items-center gap-1 ${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                                {isProfit ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                                {formatCurrency(Math.abs(profitLoss))}
+                                            </span>
+                                            <span className={`text-xs ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                {isProfit ? '+' : ''}{profitLossPercent.toFixed(2)}%
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400 text-xs">-</span>
+                                    )}
                                 </td>
                                 <td className="py-4 px-6 text-right text-sm font-black text-blue-600 dark:text-blue-400">
-                                    {formatCurrency(totalValue)}
+                                    {formatCurrency(currentValue)}
                                 </td>
                                 <td className="py-4 px-6">
                                     <div className="flex items-center justify-end gap-2">
