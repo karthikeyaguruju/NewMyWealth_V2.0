@@ -117,7 +117,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 "fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-[#0a0f1d] border-r border-gray-100 dark:border-white/5 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:h-screen",
                 isOpen ? "translate-x-0" : "-translate-x-full shadow-2xl md:shadow-none"
             )}>
-                <div className="flex flex-col h-full uppercase-tracking">
+                <div className="flex flex-col h-full">
                     {/* Brand/Logo Section */}
                     <div className="px-7 py-8">
                         <div className="flex items-center justify-between">
