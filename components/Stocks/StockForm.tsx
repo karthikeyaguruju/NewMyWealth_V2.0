@@ -69,12 +69,19 @@ export function StockForm({ isOpen, onClose, onSuccess, stock }: StockFormProps)
                 body: JSON.stringify(payload),
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                const data = await response.json();
                 throw new Error(data.error || 'Failed to save stock');
             }
 
-            showToast('success', stock ? 'Stock updated successfully' : 'Stock added successfully');
+            // Show appropriate message based on whether stock was averaged
+            if (data.averaged) {
+                showToast('success', data.message || 'Stock averaged successfully');
+            } else {
+                showToast('success', stock ? 'Stock updated successfully' : 'Stock added successfully');
+            }
+
             setLoading(false);
             onSuccess();
             onClose();
@@ -108,6 +115,11 @@ export function StockForm({ isOpen, onClose, onSuccess, stock }: StockFormProps)
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
                     {stock ? 'Update your stock details' : 'Add a new stock to your portfolio'}
                 </p>
+                {!stock && (
+                    <p className="text-blue-600 dark:text-blue-400 text-xs mt-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
+                        💡 Tip: Adding the same stock symbol will automatically average your buy price
+                    </p>
+                )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">

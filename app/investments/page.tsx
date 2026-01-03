@@ -139,16 +139,16 @@ export default function InvestmentsPage() {
             <div className="max-w-7xl mx-auto space-y-8 pb-12">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <Target className="text-primary-500 animate-pulse" size={28} />
+                    <div className="flex items-center gap-3">
+                        <Target className="text-primary-500 animate-pulse" size={28} />
+                        <div>
                             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
-                                Investment <span className="text-gradient">Portfolio</span>
+                                Investment Portfolio
                             </h1>
+                            <p className="text-gray-500 dark:text-gray-400 font-medium">
+                                Detailed performance analysis of your wealth builders
+                            </p>
                         </div>
-                        <p className="text-gray-500 dark:text-gray-400">
-                            Detailed performance analysis of your wealth builders.
-                        </p>
                     </div>
                     <div className="glass p-1 rounded-2xl flex items-center shadow-lg">
                         {(['1M', '3M', '6M', '1Y', 'ALL'] as TimeRange[]).map((range) => (

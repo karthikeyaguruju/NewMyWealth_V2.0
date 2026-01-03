@@ -68,7 +68,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
     const displayName = getFirstName(userName);
 
     return (
-        <header className="glass sticky top-4 z-20 mx-6 mt-4 md:mx-8 md:mt-6 rounded-2xl border border-white/20 dark:border-white/10 p-4 flex items-center justify-between transition-all duration-300 shadow-lg">
+        <header className="glass sticky top-4 z-20 mx-6 mt-4 md:mx-8 md:mt-6 rounded-xl border border-white/20 dark:border-white/10 p-4 flex items-center justify-between transition-all duration-300 shadow-lg">
             <div className="flex items-center gap-4">
                 <button
                     onClick={onMenuClick}

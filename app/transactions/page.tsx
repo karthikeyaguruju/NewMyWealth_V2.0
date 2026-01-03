@@ -256,10 +256,8 @@ function TransactionsContent() {
             <div className="space-y-8 max-w-7xl mx-auto pb-12">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl text-white shadow-xl shadow-violet-500/20">
-                            <Receipt size={28} />
-                        </div>
+                    <div className="flex items-center gap-3">
+                        <Receipt className="text-violet-500 animate-pulse" size={28} />
                         <div>
                             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Transactions</h1>
                             <p className="text-gray-500 dark:text-gray-400 font-medium">Track and manage all your financial activities</p>
@@ -271,10 +269,11 @@ function TransactionsContent() {
                             setIsFormOpen(true);
                         }}
                         size="lg"
-                        className="rounded-2xl shadow-lg shadow-primary-600/20"
+                        className="rounded-2xl shadow-lg shadow-primary-600/20 md:px-6"
                         icon={<Plus size={20} />}
                     >
-                        Add Transaction
+                        <span className="hidden sm:inline">Add Transaction</span>
+                        <span className="sm:hidden">Add</span>
                     </Button>
                 </div>
 

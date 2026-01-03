@@ -97,10 +97,8 @@ export default function StocksPage() {
             <div className="space-y-8 max-w-7xl mx-auto pb-12">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-600/20">
-                            <LineChart size={28} />
-                        </div>
+                    <div className="flex items-center gap-3">
+                        <LineChart className="text-blue-500 animate-pulse" size={28} />
                         <div>
                             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Stocks Portfolio</h1>
                             <p className="text-gray-500 dark:text-gray-400 font-medium">Manage and track your equity investments</p>
@@ -119,60 +117,68 @@ export default function StocksPage() {
                     </Button>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <Card className="p-6 bg-white dark:bg-[#0a0f1d] border border-gray-200 dark:border-gray-700/50 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-                                <DollarSign size={24} />
+                {/* Quick Stats - Horizontal Scroll on Mobile */}
+                <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 pb-4 md:pb-0 scrollbar-hide snap-x snap-mandatory">
+                    <div className="min-w-[280px] snap-center flex-1">
+                        <Card className="p-6 bg-white dark:bg-[#0a0f1d] border border-gray-200 dark:border-gray-700/50 shadow-sm h-full">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
+                                    <DollarSign size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Total Invested</p>
+                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white">₹{totalInvested.toLocaleString()}</h2>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Total Invested</p>
-                                <h2 className="text-2xl font-black text-gray-900 dark:text-white">₹{totalInvested.toLocaleString()}</h2>
-                            </div>
-                        </div>
-                    </Card>
+                        </Card>
+                    </div>
 
-                    <Card className="p-6 bg-white dark:bg-[#0a0f1d] border-gray-100 dark:border-white/5 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl">
-                                <Activity size={24} />
+                    <div className="min-w-[280px] snap-center flex-1">
+                        <Card className="p-6 bg-white dark:bg-[#0a0f1d] border-gray-100 dark:border-white/5 shadow-sm h-full">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl">
+                                    <Activity size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Current Value</p>
+                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white">₹{totalCurrentValue.toLocaleString()}</h2>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Current Value</p>
-                                <h2 className="text-2xl font-black text-gray-900 dark:text-white">₹{totalCurrentValue.toLocaleString()}</h2>
-                            </div>
-                        </div>
-                    </Card>
+                        </Card>
+                    </div>
 
-                    <Card className={`p-6 bg-white dark:bg-[#0a0f1d] shadow-sm ${isOverallProfit ? 'border border-emerald-300 dark:border-emerald-600/50' : 'border border-rose-300 dark:border-rose-600/50'}`}>
-                        <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-xl ${isOverallProfit ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'}`}>
-                                {isOverallProfit ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                    <div className="min-w-[280px] snap-center flex-1">
+                        <Card className={`p-6 bg-white dark:bg-[#0a0f1d] shadow-sm h-full ${isOverallProfit ? 'border border-emerald-300 dark:border-emerald-600/50' : 'border border-rose-300 dark:border-rose-600/50'}`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-xl ${isOverallProfit ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'}`}>
+                                    {isOverallProfit ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Total P/L</p>
+                                    <h2 className={`text-2xl font-black ${isOverallProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                        {isOverallProfit ? '+' : ''}₹{totalProfitLoss.toLocaleString()}
+                                    </h2>
+                                    <p className={`text-xs font-semibold ${isOverallProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {isOverallProfit ? '+' : ''}{profitLossPercent.toFixed(2)}%
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Total P/L</p>
-                                <h2 className={`text-2xl font-black ${isOverallProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                    {isOverallProfit ? '+' : ''}₹{totalProfitLoss.toLocaleString()}
-                                </h2>
-                                <p className={`text-xs font-semibold ${isOverallProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                    {isOverallProfit ? '+' : ''}{profitLossPercent.toFixed(2)}%
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
+                        </Card>
+                    </div>
 
-                    <Card className="p-6 bg-white dark:bg-[#0a0f1d] border-gray-100 dark:border-white/5 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl">
-                                <LineChart size={24} />
+                    <div className="min-w-[280px] snap-center flex-1">
+                        <Card className="p-6 bg-white dark:bg-[#0a0f1d] border-gray-100 dark:border-white/5 shadow-sm h-full">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl">
+                                    <LineChart size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Active Stocks</p>
+                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white">{totalInvestments}</h2>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Active Stocks</p>
-                                <h2 className="text-2xl font-black text-gray-900 dark:text-white">{totalInvestments}</h2>
-                            </div>
-                        </div>
-                    </Card>
+                        </Card>
+                    </div>
                 </div>
 
                 {/* Stocks Table */}

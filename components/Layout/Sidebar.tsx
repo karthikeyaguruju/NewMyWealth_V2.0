@@ -45,14 +45,14 @@ const mainItems = [
         icon: ArrowLeftRight,
     },
     {
-        name: 'Investments',
-        href: '/investments',
-        icon: TrendingUp,
-    },
-    {
         name: 'Stocks',
         href: '/stocks',
         icon: LineChart,
+    },
+    {
+        name: 'Investments',
+        href: '/investments',
+        icon: TrendingUp,
     },
     {
         name: 'Analytics',
@@ -140,7 +140,7 @@ function SidebarContent({ isOpen, onClose }: SidebarProps) {
                                     <TrendingUp size={20} />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">My Finance</span>
+                                    <span className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">My Finance</span>
                                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">Dashboard</span>
                                 </div>
                             </Link>
