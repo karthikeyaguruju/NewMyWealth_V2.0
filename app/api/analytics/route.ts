@@ -44,6 +44,35 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Fetch stock data for investment totals
+    const stocks = await prisma.stock.findMany({
+      where: { userId }
+    });
+
+    // Calculate total stock value
+    const stockHoldings = stocks.reduce((acc: any, stock: any) => {
+      const symbol = stock.symbol.toUpperCase();
+      if (!acc[symbol]) {
+        acc[symbol] = { quantity: 0, totalInvested: 0 };
+      }
+      if (stock.type === 'BUY') {
+        acc[symbol].quantity += stock.quantity;
+        acc[symbol].totalInvested += (stock.quantity * stock.buyPrice);
+      } else {
+        acc[symbol].quantity -= stock.quantity;
+        const avgCost = acc[symbol].totalInvested / (acc[symbol].quantity + stock.quantity);
+        acc[symbol].totalInvested -= (stock.quantity * avgCost);
+      }
+      return acc;
+    }, {});
+
+    let totalStockInvested = 0;
+    Object.values(stockHoldings).forEach((holding: any) => {
+      if (holding.quantity > 0) {
+        totalStockInvested += holding.totalInvested;
+      }
+    });
+
     // ---------- Aggregate calculations ----------
     const totalIncome = transactions
       .filter((t) => t.type === 'income')
@@ -51,9 +80,10 @@ export async function GET(request: NextRequest) {
     const totalExpenses = transactions
       .filter((t) => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
-    const totalInvestments = transactions
+    const totalTransactionInvestments = transactions
       .filter((t) => t.type === 'investment' && t.status !== 'terminated')
       .reduce((sum, t) => sum + t.amount, 0);
+    const totalInvestments = totalTransactionInvestments + totalStockInvested;
     const netSavings = totalIncome - totalExpenses;
 
     // ----- This month statistics -----
@@ -98,35 +128,94 @@ export async function GET(request: NextRequest) {
 
     const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
-    // ----- Monthly data for charts (default 6 months) -----
-    const historyMonths = searchParams.get('historyMonths')
+    // ----- Data for charts -----
+    let historyMonths = searchParams.get('historyMonths')
       ? parseInt(searchParams.get('historyMonths')!)
       : 6;
-    const monthlyData: any[] = [];
-    for (let i = historyMonths - 1; i >= 0; i--) {
-      const monthDate = subMonths(new Date(), i);
-      const monthStart = new Date(format(startOfMonth(monthDate), 'yyyy-MM-dd'));
-      const monthEnd = new Date(format(endOfMonth(monthDate), 'yyyy-MM-dd'));
-      const monthLabel = format(monthDate, 'MMM yyyy');
-      const monthTx = transactions.filter(
-        (t) => t.date >= monthStart && t.date <= monthEnd
-      );
-      const income = monthTx
-        .filter((t) => t.type === 'income')
-        .reduce((sum, t) => sum + t.amount, 0);
-      const expense = monthTx
-        .filter((t) => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
-      const investment = monthTx
-        .filter((t) => t.type === 'investment' && t.status !== 'terminated')
-        .reduce((sum, t) => sum + t.amount, 0);
-      monthlyData.push({
-        month: monthLabel,
-        income,
-        expense,
-        investment,
-        savings: income - expense,
+
+    const granularity = searchParams.get('granularity') || 'month'; // 'month' or 'day'
+
+    // Special case: "Full" logic
+    if (historyMonths > 12 && granularity === 'month') {
+      const firstTransaction = await prisma.transaction.findFirst({
+        where: { userId },
+        orderBy: { date: 'asc' },
       });
+
+      if (firstTransaction) {
+        const firstDate = new Date(firstTransaction.date);
+        const now = new Date();
+        const diffYears = now.getFullYear() - firstDate.getFullYear();
+        const diffMonths = (now.getMonth() - firstDate.getMonth()) + (diffYears * 12);
+        historyMonths = Math.min(historyMonths, Math.max(diffMonths + 1, 1));
+      } else {
+        historyMonths = 1;
+      }
+    }
+
+    const chartData: any[] = [];
+
+    if (granularity === 'day') {
+      // Fetch daily data for the last X days
+      const days = searchParams.get('days') ? parseInt(searchParams.get('days')!) : 30;
+      for (let i = days - 1; i >= 0; i--) {
+        const dayDate = subMonths(new Date(), 0); // Reset base
+        dayDate.setDate(new Date().getDate() - i);
+        dayDate.setHours(0, 0, 0, 0);
+
+        const dayEnd = new Date(dayDate);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const dayLabel = format(dayDate, 'MMM dd');
+        const dayTx = transactions.filter(
+          (t) => t.date >= dayDate && t.date <= dayEnd
+        );
+
+        const income = dayTx
+          .filter((t) => t.type === 'income')
+          .reduce((sum, t) => sum + t.amount, 0);
+        const expense = dayTx
+          .filter((t) => t.type === 'expense')
+          .reduce((sum, t) => sum + t.amount, 0);
+        const investment = dayTx
+          .filter((t) => t.type === 'investment' && t.status !== 'terminated')
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        chartData.push({
+          label: dayLabel,
+          income,
+          expense,
+          investment,
+          savings: income - expense,
+        });
+      }
+    } else {
+      // Traditional monthly loop
+      for (let i = historyMonths - 1; i >= 0; i--) {
+        const monthDate = subMonths(new Date(), i);
+        const monthStart = new Date(format(startOfMonth(monthDate), 'yyyy-MM-dd'));
+        const monthEnd = new Date(format(endOfMonth(monthDate), 'yyyy-MM-dd'));
+        const monthLabel = format(monthDate, 'MMM yyyy');
+        const monthTx = transactions.filter(
+          (t) => t.date >= monthStart && t.date <= monthEnd
+        );
+        const income = monthTx
+          .filter((t) => t.type === 'income')
+          .reduce((sum, t) => sum + t.amount, 0);
+        const expense = monthTx
+          .filter((t) => t.type === 'expense')
+          .reduce((sum, t) => sum + t.amount, 0);
+        const investment = monthTx
+          .filter((t) => t.type === 'investment' && t.status !== 'terminated')
+          .reduce((sum, t) => sum + t.amount, 0);
+        chartData.push({
+          label: monthLabel,
+          income,
+          expense,
+          investment,
+          savings: income - expense,
+        });
+      }
     }
 
     // ----- Category breakdowns -----
@@ -142,6 +231,10 @@ export async function GET(request: NextRequest) {
         investmentByCategory[t.category] = (investmentByCategory[t.category] || 0) + t.amount;
       }
     });
+    // Add stocks to investment allocation
+    if (totalStockInvested > 0) {
+      investmentByCategory['Equity Stocks'] = (investmentByCategory['Equity Stocks'] || 0) + totalStockInvested;
+    }
     const incomeBreakdown = Object.entries(incomeByCategory).map(([name, value]) => ({ name, value }));
     const expenseBreakdown = Object.entries(expenseByCategory).map(([name, value]) => ({ name, value }));
     const investmentAllocation = Object.entries(investmentByCategory).map(([name, value]) => ({ name, value }));
@@ -161,7 +254,7 @@ export async function GET(request: NextRequest) {
           expenseGrowth,
           investmentGrowth,
         },
-        monthlyData,
+        monthlyData: chartData,
         incomeBreakdown,
         expenseBreakdown,
         investmentAllocation,

@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { useToast } from '@/contexts/ToastContext';
 import { SwipeButton } from '@/components/ui/SwipeButton';
 
@@ -23,6 +24,7 @@ export function StockForm({ isOpen, onClose, onSuccess, stock }: StockFormProps)
         quantity: '',
         buyPrice: '',
         sellPrice: '',
+        broker: '',
         type: 'BUY',
         date: new Date().toISOString().split('T')[0],
     });
@@ -37,6 +39,7 @@ export function StockForm({ isOpen, onClose, onSuccess, stock }: StockFormProps)
                 quantity: stock.quantity.toString(),
                 buyPrice: stock.buyPrice.toString(),
                 sellPrice: stock.sellPrice?.toString() || '',
+                broker: stock.broker || '',
                 type: stock.type,
                 date: stock.date ? new Date(stock.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
             });
@@ -102,6 +105,7 @@ export function StockForm({ isOpen, onClose, onSuccess, stock }: StockFormProps)
             quantity: '',
             buyPrice: '',
             sellPrice: '',
+            broker: '',
             type: 'BUY',
             date: new Date().toISOString().split('T')[0],
         });
@@ -119,9 +123,26 @@ export function StockForm({ isOpen, onClose, onSuccess, stock }: StockFormProps)
                     {stock ? 'Update your stock details' : 'Add a new stock to your portfolio'}
                 </p>
                 {!stock && (
-                    <p className="text-blue-600 dark:text-blue-400 text-xs mt-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
-                        💡 Tip: Adding the same stock symbol will automatically average your buy price
-                    </p>
+                    <div className="mt-2 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-2xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Portfolio Tips</h4>
+                        </div>
+                        <ul className="space-y-1.5">
+                            <li className="text-[11px] font-medium text-blue-700/80 dark:text-blue-300/80 flex gap-2">
+                                <span className="opacity-50 mt-1">•</span>
+                                <span>For BSE stocks with names (like <b>PRADHIN</b>), enter <b>PRADHIN.BO</b> to force live data.</span>
+                            </li>
+                            <li className="text-[11px] font-medium text-blue-700/80 dark:text-blue-300/80 flex gap-2">
+                                <span className="opacity-50 mt-1">•</span>
+                                <span>Enter alphabetic symbols for NSE (e.g. RELIANCE) and numeric IDs for BSE (e.g. 530095).</span>
+                            </li>
+                            <li className="text-[11px] font-medium text-blue-700/80 dark:text-blue-300/80 flex gap-2">
+                                <span className="opacity-50 mt-1">•</span>
+                                <span>Each transaction is saved separately. Use the <b>Consolidated</b> view toggle to see merged totals with average price and all brokers.</span>
+                            </li>
+                        </ul>
+                    </div>
                 )}
             </div>
 
@@ -161,12 +182,10 @@ export function StockForm({ isOpen, onClose, onSuccess, stock }: StockFormProps)
                         min="0.01"
                         step="0.01"
                     />
-                    <Input
+                    <DatePicker
                         label="Date"
-                        type="date"
                         value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        required
+                        onChange={(date) => setFormData({ ...formData, date })}
                     />
                 </div>
 
@@ -191,8 +210,14 @@ export function StockForm({ isOpen, onClose, onSuccess, stock }: StockFormProps)
                     />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-
+                <div className="grid grid-cols-2 gap-4">
+                    <Input
+                        label="Broker"
+                        value={formData.broker}
+                        onChange={(e) => setFormData({ ...formData, broker: e.target.value })}
+                        placeholder="e.g. Zerodha, Groww"
+                        leftIcon={<div className="h-4 w-1 bg-blue-500 rounded-full" />}
+                    />
                     <Select
                         label="Transaction Type"
                         value={formData.type}

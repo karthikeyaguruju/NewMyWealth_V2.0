@@ -28,35 +28,69 @@ export async function GET(request: NextRequest) {
         const endDate = endDateStr ? new Date(endDateStr) : undefined;
 
         // Get all investment transactions first
-        const allInvestments = await prisma.transaction.findMany({
-            where: {
-                userId,
-                type: 'investment',
-                // Apply date filter if provided
-                ...(startDate && endDate && {
-                    date: {
-                        gte: startDate,
-                        lte: endDate,
-                    },
-                }),
-            },
-            orderBy: {
-                date: 'asc',
-            },
-        });
+        const [allInvestments, stocks] = await Promise.all([
+            prisma.transaction.findMany({
+                where: {
+                    userId,
+                    type: 'investment',
+                    // Apply date filter if provided
+                    ...(startDate && endDate && {
+                        date: {
+                            gte: startDate,
+                            lte: endDate,
+                        },
+                    }),
+                },
+                orderBy: {
+                    date: 'asc',
+                },
+            }),
+            prisma.stock.findMany({
+                where: { userId }
+            })
+        ]);
 
         // Filter out terminated investments in JavaScript
-        // This correctly handles null/undefined status (old records)
         const investments = allInvestments.filter(t => t.status !== 'terminated');
-
-        // Total invested
-        const totalInvested = investments.reduce((sum, t) => sum + t.amount, 0);
 
         // Group by category
         const byCategory: Record<string, number> = {};
         investments.forEach((t) => {
             byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
         });
+
+        // Add Stock data to categories
+        // Group raw stock transactions by symbol to get active holdings
+        const stockHoldings = stocks.reduce((acc: any, stock: any) => {
+            const symbol = stock.symbol.toUpperCase();
+            if (!acc[symbol]) {
+                acc[symbol] = { quantity: 0, totalInvested: 0 };
+            }
+
+            if (stock.type === 'BUY') {
+                acc[symbol].quantity += stock.quantity;
+                acc[symbol].totalInvested += (stock.quantity * stock.buyPrice);
+            } else {
+                acc[symbol].quantity -= stock.quantity;
+                const avgCost = acc[symbol].totalInvested / (acc[symbol].quantity + stock.quantity);
+                acc[symbol].totalInvested -= (stock.quantity * avgCost);
+            }
+            return acc;
+        }, {});
+
+        let totalStockInvested = 0;
+        Object.values(stockHoldings).forEach((holding: any) => {
+            if (holding.quantity > 0) {
+                totalStockInvested += holding.totalInvested;
+            }
+        });
+
+        if (totalStockInvested > 0) {
+            byCategory['Equity Stocks'] = (byCategory['Equity Stocks'] || 0) + totalStockInvested;
+        }
+
+        // Total invested (Transactions + Stocks)
+        const totalInvested = Object.values(byCategory).reduce((sum, amt) => sum + amt, 0);
 
         const categoryBreakdown = Object.entries(byCategory).map(([category, amount]) => ({
             category,
@@ -69,24 +103,31 @@ export async function GET(request: NextRequest) {
             value,
         }));
 
+        // Unified data for trends (Investments + Stock Transactions)
+        const unifiedTransactions = [
+            ...investments.map(t => ({ date: new Date(t.date), amount: t.amount })),
+            ...stocks.map(s => ({
+                date: new Date(s.date || s.createdAt),
+                amount: s.type === 'BUY' ? (s.quantity * s.buyPrice) : -(s.quantity * (s.sellPrice || s.buyPrice))
+            }))
+        ];
+
         // Generate trend data based on historyMonths
         const historyMonths = searchParams.get('historyMonths') ? parseInt(searchParams.get('historyMonths')!) : 6;
         const monthlyData: any[] = [];
         const today = new Date();
 
         // Calculate this month's and last month's totals for growth
-        // Use Date objects for comparison since t.date is a Date object
         const thisMonthStart = startOfMonth(today);
-
         const lastMonthDate = subMonths(today, 1);
         const lastMonthStart = startOfMonth(lastMonthDate);
         const lastMonthEnd = endOfMonth(lastMonthDate);
 
-        const thisMonthTotal = investments
+        const thisMonthTotal = unifiedTransactions
             .filter(t => t.date >= thisMonthStart)
             .reduce((sum, t) => sum + t.amount, 0);
 
-        const lastMonthTotal = investments
+        const lastMonthTotal = unifiedTransactions
             .filter(t => t.date >= lastMonthStart && t.date <= lastMonthEnd)
             .reduce((sum, t) => sum + t.amount, 0);
 
@@ -100,16 +141,16 @@ export async function GET(request: NextRequest) {
             const monthEnd = endOfMonth(monthDate);
             const monthLabel = format(monthDate, 'MMM yyyy');
 
-            const monthInvestments = investments.filter(
+            const monthTx = unifiedTransactions.filter(
                 (t) => t.date >= monthStart && t.date <= monthEnd
             );
 
-            const amount = monthInvestments.reduce((sum, t) => sum + t.amount, 0);
-            const count = monthInvestments.length;
+            const amount = monthTx.reduce((sum, t) => sum + t.amount, 0);
+            const count = monthTx.length;
 
             monthlyData.push({
                 month: monthLabel,
-                amount,
+                amount: Math.max(0, amount), // Show 0 if net is negative, though unlikely for capital deployed
                 count,
             });
         }

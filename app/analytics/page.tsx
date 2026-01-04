@@ -218,28 +218,65 @@ export default function AnalyticsPage() {
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Income Sources</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Detailed breakdown of revenue streams</p>
                         </div>
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={analytics.incomeBreakdown} layout="vertical" margin={{ left: 10, right: 30 }}>
-                                    <XAxis type="number" hide />
-                                    <YAxis
-                                        dataKey="name"
-                                        type="category"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fontSize: 12, fontWeight: 700, fill: '#6B7280' }}
-                                        width={100}
-                                    />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.02)' }} />
-                                    <Bar
-                                        dataKey="value"
-                                        fill="#10b981"
-                                        radius={[0, 10, 10, 0]}
-                                        barSize={24}
-                                        background={{ fill: 'rgba(0,0,0,0.03)', radius: 10 }}
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <div className="h-80 relative">
+                            {analytics.incomeBreakdown && analytics.incomeBreakdown.length > 0 ? (
+                                <div className="h-full flex flex-col">
+                                    <div className="h-64 relative">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={analytics.incomeBreakdown}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={70}
+                                                    outerRadius={95}
+                                                    paddingAngle={6}
+                                                    dataKey="value"
+                                                    stroke="none"
+                                                >
+                                                    {analytics.incomeBreakdown.map((_, index) => (
+                                                        <Cell
+                                                            key={`income-cell-${index}`}
+                                                            fill={[
+                                                                '#10b981', // emerald-500
+                                                                '#059669', // emerald-600
+                                                                '#34d399', // emerald-400
+                                                                '#047857', // emerald-700
+                                                                '#6ee7b7', // emerald-300
+                                                                '#065f46', // emerald-800
+                                                            ][index % 6]}
+                                                            className="hover:opacity-80 transition-opacity cursor-pointer outline-none"
+                                                        />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip content={<CustomTooltip />} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Income</p>
+                                            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">₹{metrics.totalIncome.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 overflow-y-auto max-h-[100px] pr-2 custom-scrollbar text-[11px]">
+                                        {analytics.incomeBreakdown.sort((a, b) => b.value - a.value).map((category, index) => (
+                                            <div key={index} className="flex items-center justify-between group">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full" style={{
+                                                        backgroundColor: [
+                                                            '#10b981', '#059669', '#34d399', '#047857', '#6ee7b7', '#065f46'
+                                                        ][index % 6]
+                                                    }} />
+                                                    <span className="font-bold text-gray-500 group-hover:text-gray-900 dark:group-hover:text-white transition-colors truncate max-w-[100px]">{category.name}</span>
+                                                </div>
+                                                <span className="font-black text-gray-900 dark:text-white">₹{category.value.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-gray-400 font-medium text-sm">No income data</div>
+                            )}
                         </div>
                     </div>
 

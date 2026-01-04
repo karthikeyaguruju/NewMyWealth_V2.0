@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DatePicker } from '@/components/ui/DatePicker';
 import {
     Plus, Pencil, Trash2, Search, Filter, X, Calendar, ChevronLeft, ChevronRight,
     CheckCircle, XCircle, BanknoteIcon, ArrowUpRight, ArrowDownRight,
@@ -341,7 +342,7 @@ function TransactionsContent() {
                 </div>
 
                 {/* Quick Filters & Search Toolbar */}
-                <div className="glass-card p-6 overflow-visible">
+                <div className="glass-card p-6 overflow-visible relative z-30">
                     <div className="flex flex-col lg:flex-row gap-6">
                         {/* Quick Filter Buttons */}
                         <div className="flex flex-wrap gap-2">
@@ -437,21 +438,19 @@ function TransactionsContent() {
                                         }}
                                     />
                                 </div>
-                                <Input
+                                <DatePicker
                                     label="From Date"
-                                    type="date"
                                     value={filters.startDate}
-                                    onChange={(e) => {
-                                        setFilters(prev => ({ ...prev, startDate: e.target.value }));
+                                    onChange={(date) => {
+                                        setFilters(prev => ({ ...prev, startDate: date }));
                                         setCurrentPage(1);
                                     }}
                                 />
-                                <Input
+                                <DatePicker
                                     label="To Date"
-                                    type="date"
                                     value={filters.endDate}
-                                    onChange={(e) => {
-                                        setFilters(prev => ({ ...prev, endDate: e.target.value }));
+                                    onChange={(date) => {
+                                        setFilters(prev => ({ ...prev, endDate: date }));
                                         setCurrentPage(1);
                                     }}
                                 />
@@ -461,7 +460,7 @@ function TransactionsContent() {
                 </div>
 
                 {/* Transactions Table */}
-                <div className="glass-card overflow-hidden">
+                <div className="glass-card overflow-hidden relative z-10">
                     <div className="p-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
                         <div>
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Transaction History</h3>

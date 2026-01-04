@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
-import { StockForm } from '@/components/Stocks/StockForm';
 import { StockTable } from '@/components/Stocks/StockTable';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -14,8 +13,6 @@ export default function StocksPage() {
     const [stocks, setStocks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingStock, setEditingStock] = useState<any>(null);
 
     useEffect(() => {
         fetchStocks();
@@ -117,12 +114,10 @@ export default function StocksPage() {
     };
 
     const handleEdit = (stock: any) => {
-        setEditingStock(stock);
-        setIsFormOpen(true);
+        // Edit and success logic removed as form is now on transactions page
     };
 
     const handleSuccess = () => {
-        fetchStocks();
     };
 
     // Calculate portfolio metrics
@@ -148,18 +143,6 @@ export default function StocksPage() {
                             <p className="text-gray-500 dark:text-gray-400 font-medium">Manage and track your equity investments</p>
                         </div>
                     </div>
-                    <Button
-                        onClick={() => {
-                            setEditingStock(null);
-                            setIsFormOpen(true);
-                        }}
-                        size="lg"
-                        className="rounded-2xl shadow-lg shadow-blue-600/20 md:px-6"
-                        icon={<Plus size={20} />}
-                    >
-                        <span className="hidden sm:inline">Add New Stock</span>
-                        <span className="sm:hidden">Add</span>
-                    </Button>
                 </div>
 
                 {/* Quick Stats - Horizontal Scroll on Mobile */}
@@ -248,13 +231,6 @@ export default function StocksPage() {
                     />
                 </div>
             </div>
-
-            <StockForm
-                isOpen={isFormOpen}
-                onClose={() => setIsFormOpen(false)}
-                onSuccess={handleSuccess}
-                stock={editingStock}
-            />
         </DashboardLayout >
     );
 }

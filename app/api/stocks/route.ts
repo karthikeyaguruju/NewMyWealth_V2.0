@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
         const validatedData = stockSchema.parse(body);
         const { date, ...dataWithoutDate } = validatedData;
 
-        // Save as a new transaction record
+        // Always save as a new transaction record - no merging
+        // This preserves full transaction history for the user
         const stock = await prisma.stock.create({
             data: {
                 ...dataWithoutDate,

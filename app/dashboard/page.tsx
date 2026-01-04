@@ -27,6 +27,7 @@ import {
 import { Greeting } from '@/components/Dashboard/Greeting';
 import { MonthlyTrends } from '@/components/Dashboard/MonthlyTrends';
 import { FinancialInsights } from '@/components/Dashboard/FinancialInsights';
+import { PeriodicFinanceChart } from '@/components/Dashboard/PeriodicFinanceChart';
 
 interface AnalyticsData {
     metrics: {
@@ -179,12 +180,13 @@ export default function DashboardPage() {
                         <div className="h-8 w-1.5 bg-primary-600 rounded-full"></div>
                         <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Financial Performance</h2>
                     </div>
-                    <MonthlyTrends data={analytics.monthlyData} />
+                    <PeriodicFinanceChart />
                     <FinancialInsights
                         expenseData={analytics.expenseBreakdown}
                         investmentData={analytics.investmentAllocation}
                         savingsRate={metrics.savingsRate}
                     />
+                    <MonthlyTrends data={analytics.monthlyData} />
                 </div>
 
                 <div className="flex items-center gap-3 mb-2">

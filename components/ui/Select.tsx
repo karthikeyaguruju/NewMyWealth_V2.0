@@ -34,7 +34,7 @@ export function Select({
     return (
         <div className="w-full">
             {label && (
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="block text-[15px] font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     {label}
                 </label>
             )}
@@ -42,10 +42,10 @@ export function Select({
                 <div className="relative">
                     <Listbox.Button
                         className={cn(
-                            'relative w-full px-4 py-2.5 rounded-lg border text-left transition-all duration-200',
-                            'bg-white dark:bg-gray-800 text-gray-900 dark:text-white',
-                            'border-gray-300 dark:border-gray-600',
-                            'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
+                            'relative w-full px-4 py-3 rounded-xl border text-left transition-all duration-300',
+                            'bg-white dark:bg-slate-900/50 text-gray-900 dark:text-white',
+                            'border-gray-200 dark:border-white/10 text-base',
+                            'focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500',
                             'disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed',
                             error && 'border-red-500 focus:ring-red-500'
                         )}
@@ -54,7 +54,7 @@ export function Select({
                             {selectedOption ? selectedOption.label : placeholder}
                         </span>
                         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                            <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                            <ChevronDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
                         </span>
                     </Listbox.Button>
                     <Transition
@@ -63,15 +63,15 @@ export function Select({
                         leaveFrom="opacity-100"
                         leaveTo="opacity-0"
                     >
-                        <Listbox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white dark:bg-gray-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700">
+                        <Listbox.Options className="absolute z-50 mt-2 max-h-60 w-full overflow-auto rounded-xl bg-white dark:bg-gray-900 py-1 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-100 dark:border-gray-700">
                             {options.map((option) => (
                                 <Listbox.Option
                                     key={option.value}
                                     value={option.value}
                                     className={({ active }) =>
                                         cn(
-                                            'relative cursor-pointer select-none py-2 pl-10 pr-4',
-                                            active ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-900 dark:text-primary-100' : 'text-gray-900 dark:text-gray-100'
+                                            'relative cursor-pointer select-none py-3 pl-10 pr-4 transition-colors',
+                                            active ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-gray-100'
                                         )
                                     }
                                 >

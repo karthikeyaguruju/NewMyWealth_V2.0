@@ -33,13 +33,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: 'No stocks to update' }, { status: 200 });
         }
 
-        // Format symbols for Indian stocks (add .NS for NSE)
+        // Format symbols for Indian stocks
         const symbols = stocks.map(s => {
-            // If symbol doesn't have exchange suffix, add .NS for NSE
-            if (!s.symbol.includes('.')) {
-                return `${s.symbol}.NS`;
+            const sym = s.symbol.trim().toUpperCase();
+
+            // If user already specified the exchange, respect it
+            if (sym.endsWith('.NS') || sym.endsWith('.BO')) {
+                return sym;
             }
-            return s.symbol;
+
+            // Otherwise, apply heuristic
+            const isNumeric = /^\d+$/.test(sym);
+            return isNumeric ? `${sym}.BO` : `${sym}.NS`;
         }).join(',');
 
         // Fetch live prices from Yahoo Finance via RapidAPI
@@ -70,7 +75,9 @@ export async function POST(request: NextRequest) {
 
         // Update each stock with the current price
         const updatePromises = stocks.map(async (stock) => {
-            const price = priceMap[stock.symbol] || priceMap[`${stock.symbol}.NS`];
+            const price = priceMap[stock.symbol] ||
+                priceMap[`${stock.symbol}.NS`] ||
+                priceMap[`${stock.symbol}.BO`];
             if (price) {
                 return prisma.stock.update({
                     where: { id: stock.id },

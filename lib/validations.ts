@@ -36,6 +36,7 @@ export const stockSchema = z.object({
     quantity: z.number().positive('Quantity must be greater than 0'),
     buyPrice: z.number().nonnegative('Buy price cannot be negative'),
     sellPrice: z.number().optional().nullable(),
+    broker: z.string().optional().nullable(),
     type: z.enum(['BUY', 'SELL']),
     date: z.string().optional().nullable(),
 });

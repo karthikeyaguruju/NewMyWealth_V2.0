@@ -28,6 +28,7 @@ model Stock {
   buyPrice    Float    // Average buying price
   sellPrice   Float?   // Last selling price (if applicable)
   currentPrice Float?  // Current market price (for valuation)
+  broker      String?  // E.g., Zerodha, Groww, Upstox
   type        String   // BUY, SELL
   date        DateTime? @default(now())
   totalValue  Float?   // Derived or stored: quantity * bugPrice/currentPrice
