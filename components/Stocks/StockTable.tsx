@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Pencil, Trash2, TrendingUp, TrendingDown, Layers, RefreshCw, X, Calendar, User, Tag, IndianRupee, Activity, Briefcase, LayoutList, Combine } from 'lucide-react';
+import React, { useState } from 'react';
+import { Pencil, Trash2, TrendingUp, TrendingDown, Layers, RefreshCw, X, Calendar, User, Tag, IndianRupee, Activity, Briefcase } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
@@ -32,49 +32,6 @@ interface StockTableProps {
 
 export function StockTable({ stocks, onEdit, onDelete, onRefresh, loading, refreshing }: StockTableProps) {
     const [detailStock, setDetailStock] = useState<Stock | null>(null);
-    const [isConsolidated, setIsConsolidated] = useState(false);
-
-    // Merge stocks by symbol for consolidated view
-    const consolidatedStocks = useMemo(() => {
-        if (!isConsolidated) return stocks;
-
-        const grouped: Record<string, Stock> = {};
-        stocks.forEach(stock => {
-            const key = stock.symbol;
-            if (!grouped[key]) {
-                grouped[key] = {
-                    ...stock,
-                    id: `consolidated-${key}`,
-                    broker: stock.broker || '',
-                };
-            } else {
-                const existing = grouped[key];
-                const newQty = existing.quantity + stock.quantity;
-                const newTotalInvested = (existing.quantity * existing.buyPrice) + (stock.quantity * stock.buyPrice);
-                const avgPrice = newTotalInvested / newQty;
-
-                // Merge brokers
-                let brokers = existing.broker || '';
-                if (stock.broker) {
-                    const existingBrokers = brokers.split(',').map(b => b.trim()).filter(Boolean);
-                    if (!existingBrokers.includes(stock.broker.trim())) {
-                        brokers = brokers ? `${brokers}, ${stock.broker.trim()}` : stock.broker.trim();
-                    }
-                }
-
-                grouped[key] = {
-                    ...existing,
-                    quantity: newQty,
-                    buyPrice: avgPrice,
-                    broker: brokers,
-                    currentPrice: stock.currentPrice || existing.currentPrice,
-                };
-            }
-        });
-        return Object.values(grouped);
-    }, [stocks, isConsolidated]);
-
-    const displayStocks = isConsolidated ? consolidatedStocks : stocks;
 
     if (loading) {
         return (
@@ -100,38 +57,6 @@ export function StockTable({ stocks, onEdit, onDelete, onRefresh, loading, refre
 
     return (
         <div className="overflow-x-auto">
-            {/* View Toggle */}
-            <div className="flex items-center justify-between mb-4 px-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">View:</span>
-                    <div className="flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1 gap-1">
-                        <button
-                            onClick={() => setIsConsolidated(false)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isConsolidated
-                                ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-                                }`}
-                        >
-                            <LayoutList size={14} />
-                            All Transactions
-                        </button>
-                        <button
-                            onClick={() => setIsConsolidated(true)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isConsolidated
-                                ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-                                }`}
-                        >
-                            <Combine size={14} />
-                            Consolidated
-                        </button>
-                    </div>
-                </div>
-                <span className="text-xs text-gray-400">
-                    {displayStocks.length} {isConsolidated ? 'holdings' : 'transactions'}
-                </span>
-            </div>
-
             <table className="w-full">
                 <thead>
                     <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 font-bold">
@@ -162,7 +87,7 @@ export function StockTable({ stocks, onEdit, onDelete, onRefresh, loading, refre
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {displayStocks.map((stock, idx) => {
+                    {stocks.map((stock, idx) => {
                         const investedValue = stock.totalInvested ?? (stock.quantity * stock.buyPrice);
                         const currentValue = stock.currentValue ?? (stock.currentPrice ? stock.quantity * stock.currentPrice : investedValue);
                         const profitLoss = currentValue - investedValue;
@@ -233,26 +158,22 @@ export function StockTable({ stocks, onEdit, onDelete, onRefresh, loading, refre
                                     {formatCurrency(currentValue)}
                                 </td>
                                 <td className="py-4 px-6">
-                                    {!isConsolidated ? (
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => onEdit(stock)}
-                                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 hover:text-primary-600 opacity-0 group-hover:opacity-100"
-                                                title="Edit"
-                                            >
-                                                <Pencil size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => onDelete(stock.id, stock.symbol)}
-                                                className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-gray-500 hover:text-red-600 opacity-0 group-hover:opacity-100"
-                                                title="Delete"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <span className="text-xs text-gray-400 italic">Merged</span>
-                                    )}
+                                    <div className="flex items-center justify-end gap-2">
+                                        <button
+                                            onClick={() => onEdit(stock)}
+                                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 hover:text-primary-600 opacity-0 group-hover:opacity-100"
+                                            title="Edit"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => onDelete(stock.id, stock.symbol)}
+                                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-gray-500 hover:text-red-600 opacity-0 group-hover:opacity-100"
+                                            title="Delete"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         );

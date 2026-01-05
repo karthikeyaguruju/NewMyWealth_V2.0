@@ -87,37 +87,63 @@ export async function GET(request: NextRequest) {
     const netSavings = totalIncome - totalExpenses;
 
     // ----- This month statistics -----
-    const thisMonthStart = new Date(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-    const thisMonthEnd = new Date(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+    const thisMonthStart = startOfMonth(new Date());
+    const thisMonthEnd = endOfMonth(new Date());
+    thisMonthEnd.setHours(23, 59, 59, 999);
     const thisMonthTx = transactions.filter(
-      (t) => t.date >= thisMonthStart && t.date <= thisMonthEnd
+      (t) => {
+        const txDate = new Date(t.date);
+        return txDate >= thisMonthStart && txDate <= thisMonthEnd;
+      }
     );
+    // Include stocks purchased this month
+    const thisMonthStocks = stocks.filter((s: any) => {
+      if (!s.date) return false;
+      const stockDate = new Date(s.date);
+      return stockDate >= thisMonthStart && stockDate <= thisMonthEnd && s.type === 'BUY';
+    });
+    const thisMonthStockInvestment = thisMonthStocks.reduce((sum: number, s: any) => sum + (s.quantity * s.buyPrice), 0);
+
     const thisMonthIncome = thisMonthTx
       .filter((t) => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
     const thisMonthExpenses = thisMonthTx
       .filter((t) => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
-    const thisMonthInvestments = thisMonthTx
+    const thisMonthTxInvestments = thisMonthTx
       .filter((t) => t.type === 'investment' && t.status !== 'terminated')
       .reduce((sum, t) => sum + t.amount, 0);
+    const thisMonthInvestments = thisMonthTxInvestments + thisMonthStockInvestment;
 
     // ----- Last month for growth calculations -----
     const lastMonthDate = subMonths(new Date(), 1);
-    const lastMonthStart = new Date(format(startOfMonth(lastMonthDate), 'yyyy-MM-dd'));
-    const lastMonthEnd = new Date(format(endOfMonth(lastMonthDate), 'yyyy-MM-dd'));
+    const lastMonthStart = startOfMonth(lastMonthDate);
+    const lastMonthEnd = endOfMonth(lastMonthDate);
+    lastMonthEnd.setHours(23, 59, 59, 999);
     const lastMonthTx = transactions.filter(
-      (t) => t.date >= lastMonthStart && t.date <= lastMonthEnd
+      (t) => {
+        const txDate = new Date(t.date);
+        return txDate >= lastMonthStart && txDate <= lastMonthEnd;
+      }
     );
+    // Include stocks purchased last month
+    const lastMonthStocks = stocks.filter((s: any) => {
+      if (!s.date) return false;
+      const stockDate = new Date(s.date);
+      return stockDate >= lastMonthStart && stockDate <= lastMonthEnd && s.type === 'BUY';
+    });
+    const lastMonthStockInvestment = lastMonthStocks.reduce((sum: number, s: any) => sum + (s.quantity * s.buyPrice), 0);
+
     const lastMonthIncome = lastMonthTx
       .filter((t) => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
     const lastMonthExpenses = lastMonthTx
       .filter((t) => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
-    const lastMonthInvestments = lastMonthTx
+    const lastMonthTxInvestments = lastMonthTx
       .filter((t) => t.type === 'investment' && t.status !== 'terminated')
       .reduce((sum, t) => sum + t.amount, 0);
+    const lastMonthInvestments = lastMonthTxInvestments + lastMonthStockInvestment;
 
     const incomeGrowth =
       lastMonthIncome > 0 ? ((thisMonthIncome - lastMonthIncome) / lastMonthIncome) * 100 : 0;
@@ -159,17 +185,29 @@ export async function GET(request: NextRequest) {
       // Fetch daily data for the last X days
       const days = searchParams.get('days') ? parseInt(searchParams.get('days')!) : 30;
       for (let i = days - 1; i >= 0; i--) {
-        const dayDate = subMonths(new Date(), 0); // Reset base
-        dayDate.setDate(new Date().getDate() - i);
-        dayDate.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setDate(today.getDate() - i);
+        const dayStart = new Date(today);
+        dayStart.setHours(0, 0, 0, 0);
 
-        const dayEnd = new Date(dayDate);
+        const dayEnd = new Date(today);
         dayEnd.setHours(23, 59, 59, 999);
 
-        const dayLabel = format(dayDate, 'MMM dd');
+        const dayLabel = format(dayStart, 'MMM dd');
         const dayTx = transactions.filter(
-          (t) => t.date >= dayDate && t.date <= dayEnd
+          (t) => {
+            const txDate = new Date(t.date);
+            return txDate >= dayStart && txDate <= dayEnd;
+          }
         );
+
+        // Filter stocks purchased on this day
+        const dayStocks = stocks.filter((s: any) => {
+          if (!s.date) return false;
+          const stockDate = new Date(s.date);
+          return stockDate >= dayStart && stockDate <= dayEnd && s.type === 'BUY';
+        });
+        const stockInvestment = dayStocks.reduce((sum: number, s: any) => sum + (s.quantity * s.buyPrice), 0);
 
         const income = dayTx
           .filter((t) => t.type === 'income')
@@ -177,9 +215,10 @@ export async function GET(request: NextRequest) {
         const expense = dayTx
           .filter((t) => t.type === 'expense')
           .reduce((sum, t) => sum + t.amount, 0);
-        const investment = dayTx
+        const transactionInvestment = dayTx
           .filter((t) => t.type === 'investment' && t.status !== 'terminated')
           .reduce((sum, t) => sum + t.amount, 0);
+        const investment = transactionInvestment + stockInvestment;
 
         chartData.push({
           label: dayLabel,
@@ -193,21 +232,38 @@ export async function GET(request: NextRequest) {
       // Traditional monthly loop
       for (let i = historyMonths - 1; i >= 0; i--) {
         const monthDate = subMonths(new Date(), i);
-        const monthStart = new Date(format(startOfMonth(monthDate), 'yyyy-MM-dd'));
-        const monthEnd = new Date(format(endOfMonth(monthDate), 'yyyy-MM-dd'));
+        const monthStart = startOfMonth(monthDate);
+        const monthEnd = endOfMonth(monthDate);
+        // Set monthEnd to end of day to include all transactions
+        monthEnd.setHours(23, 59, 59, 999);
+
         const monthLabel = format(monthDate, 'MMM yyyy');
         const monthTx = transactions.filter(
-          (t) => t.date >= monthStart && t.date <= monthEnd
+          (t) => {
+            const txDate = new Date(t.date);
+            return txDate >= monthStart && txDate <= monthEnd;
+          }
         );
+
+        // Filter stocks purchased in this month
+        const monthStocks = stocks.filter((s: any) => {
+          if (!s.date) return false;
+          const stockDate = new Date(s.date);
+          return stockDate >= monthStart && stockDate <= monthEnd && s.type === 'BUY';
+        });
+        const stockInvestment = monthStocks.reduce((sum: number, s: any) => sum + (s.quantity * s.buyPrice), 0);
+
         const income = monthTx
           .filter((t) => t.type === 'income')
           .reduce((sum, t) => sum + t.amount, 0);
         const expense = monthTx
           .filter((t) => t.type === 'expense')
           .reduce((sum, t) => sum + t.amount, 0);
-        const investment = monthTx
+        const transactionInvestment = monthTx
           .filter((t) => t.type === 'investment' && t.status !== 'terminated')
           .reduce((sum, t) => sum + t.amount, 0);
+        const investment = transactionInvestment + stockInvestment;
+
         chartData.push({
           label: monthLabel,
           income,
