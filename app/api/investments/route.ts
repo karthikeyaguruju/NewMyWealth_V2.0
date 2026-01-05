@@ -135,23 +135,48 @@ export async function GET(request: NextRequest) {
             ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
             : 0;
 
+        // Get all unique categories
+        const allCategories = Object.keys(byCategory);
+
         for (let i = historyMonths - 1; i >= 0; i--) {
             const monthDate = subMonths(today, i);
             const monthStart = startOfMonth(monthDate);
             const monthEnd = endOfMonth(monthDate);
+            monthEnd.setHours(23, 59, 59, 999);
             const monthLabel = format(monthDate, 'MMM yyyy');
 
-            const monthTx = unifiedTransactions.filter(
-                (t) => t.date >= monthStart && t.date <= monthEnd
-            );
+            // Get investment transactions for this month grouped by category
+            const monthInvestments = investments.filter((t) => {
+                const txDate = new Date(t.date);
+                return txDate >= monthStart && txDate <= monthEnd;
+            });
 
-            const amount = monthTx.reduce((sum, t) => sum + t.amount, 0);
-            const count = monthTx.length;
+            // Get stock purchases for this month
+            const monthStocks = stocks.filter((s: any) => {
+                if (!s.date) return false;
+                const stockDate = new Date(s.date);
+                return stockDate >= monthStart && stockDate <= monthEnd && s.type === 'BUY';
+            });
+            const stocksAmount = monthStocks.reduce((sum: number, s: any) => sum + (s.quantity * s.buyPrice), 0);
+
+            // Build category breakdown for this month
+            const monthCategoryBreakdown: Record<string, number> = {};
+            monthInvestments.forEach((t) => {
+                monthCategoryBreakdown[t.category] = (monthCategoryBreakdown[t.category] || 0) + t.amount;
+            });
+            if (stocksAmount > 0) {
+                monthCategoryBreakdown['Equity Stocks'] = (monthCategoryBreakdown['Equity Stocks'] || 0) + stocksAmount;
+            }
+
+            const totalAmount = Object.values(monthCategoryBreakdown).reduce((sum, amt) => sum + amt, 0);
+            const count = monthInvestments.length + monthStocks.length;
 
             monthlyData.push({
                 month: monthLabel,
-                amount: Math.max(0, amount), // Show 0 if net is negative, though unlikely for capital deployed
+                amount: Math.max(0, totalAmount),
                 count,
+                // Include category-wise amounts for stacked/grouped charts
+                ...monthCategoryBreakdown,
             });
         }
 
@@ -162,6 +187,7 @@ export async function GET(request: NextRequest) {
             categoryBreakdown,
             allocation,
             monthlyData,
+            categories: allCategories, // Send category list for chart legend
         }, { status: 200 });
     } catch (error) {
         console.error('Get investments error:', error);

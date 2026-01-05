@@ -27,7 +27,8 @@ interface InvestmentData {
     monthlyGrowth: number;
     categoryBreakdown: { category: string; amount: number }[];
     allocation: { name: string; value: number }[];
-    monthlyData: { month: string; amount: number; count: number }[];
+    monthlyData: { month: string; amount: number; count: number;[key: string]: any }[];
+    categories: string[];
 }
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#fb7185'];
@@ -56,6 +57,20 @@ export default function InvestmentsPage() {
     const [data, setData] = useState<InvestmentData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
+
+    // Toggle category visibility
+    const toggleCategory = (category: string) => {
+        setHiddenCategories(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(category)) {
+                newSet.delete(category);
+            } else {
+                newSet.add(category);
+            }
+            return newSet;
+        });
+    };
 
     useEffect(() => {
         fetchInvestments();
@@ -200,22 +215,22 @@ export default function InvestmentsPage() {
                 </div>
 
                 {/* Main Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Portfolio Allocation */}
-                    <div className="glass-card p-8 flex flex-col">
-                        <div className="mb-8">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Portfolio Allocation</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Diversification across asset classes</p>
+                    <div className="glass-card p-6 flex flex-col">
+                        <div className="mb-4">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Portfolio Allocation</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Diversification across asset classes</p>
                         </div>
-                        <div className="h-80 relative">
+                        <div className="h-56 relative">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
                                         data={data.allocation}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={80}
-                                        outerRadius={110}
+                                        innerRadius={60}
+                                        outerRadius={85}
                                         paddingAngle={8}
                                         dataKey="value"
                                         stroke="none"
@@ -228,37 +243,64 @@ export default function InvestmentsPage() {
                                 </PieChart>
                             </ResponsiveContainer>
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                                <PieChartIcon className="mx-auto text-gray-300 dark:text-gray-600 mb-1" size={24} />
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Value</p>
-                                <p className="text-xl font-black text-gray-900 dark:text-white">₹{data.totalInvested.toLocaleString()}</p>
+                                <PieChartIcon className="mx-auto text-gray-300 dark:text-gray-600 mb-0.5" size={18} />
+                                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Total</p>
+                                <p className="text-base font-black text-gray-900 dark:text-white">₹{data.totalInvested.toLocaleString()}</p>
                             </div>
                         </div>
-                        <div className="mt-8 grid grid-cols-2 gap-4">
+                        <div className="mt-4 grid grid-cols-2 gap-2">
                             {data.allocation.map((entry, index) => (
-                                <div key={index} className="flex items-center gap-3 p-3 rounded-2xl bg-white/30 dark:bg-gray-800/20 border border-white/10 group">
-                                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                <div key={index} className="flex items-center gap-2 p-2 rounded-xl bg-white/30 dark:bg-gray-800/20 border border-white/10">
+                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-xs font-bold text-gray-500 truncate">{entry.name}</span>
-                                        <span className="text-sm font-black text-gray-900 dark:text-white">₹{entry.value.toLocaleString()}</span>
+                                        <span className="text-[10px] font-bold text-gray-500 truncate">{entry.name}</span>
+                                        <span className="text-xs font-black text-gray-900 dark:text-white">₹{entry.value.toLocaleString()}</span>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Growth Trend */}
-                    <div className="glass-card p-8">
-                        <div className="mb-8">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Growth Projection</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Cumulative growth over the selected period</p>
+                    {/* Growth Trend - Premium White Card */}
+                    <div className="glass-card p-6">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Growth Projection</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Cumulative portfolio growth</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30">
+                                <TrendingUp size={14} className="text-emerald-500" />
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                    {data.monthlyGrowth >= 0 ? '+' : ''}{data.monthlyGrowth.toFixed(1)}%
+                                </span>
+                            </div>
                         </div>
-                        <div className="h-96">
+
+                        {/* Stats Row */}
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Value</p>
+                                <p className="text-sm font-black text-gray-900 dark:text-white mt-0.5">₹{data.totalInvested.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">This Month</p>
+                                <p className="text-sm font-black text-gray-900 dark:text-white mt-0.5">₹{(trendData[trendData.length - 1]?.amount || 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Avg/Month</p>
+                                <p className="text-sm font-black text-gray-900 dark:text-white mt-0.5">₹{Math.round(data.totalInvested / Math.max(trendData.length, 1)).toLocaleString()}</p>
+                            </div>
+                        </div>
+
+                        {/* Chart */}
+                        <div className="h-48">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
+                                <AreaChart data={trendData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
                                     <defs>
-                                        <linearGradient id="colorInvest" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                        <linearGradient id="colorGrowthWhite" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.02} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
@@ -266,13 +308,13 @@ export default function InvestmentsPage() {
                                         dataKey="month"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fontSize: 12, fontWeight: 600, fill: '#6B7280' }}
+                                        tick={{ fontSize: 10, fontWeight: 600, fill: '#9CA3AF' }}
                                     />
                                     <YAxis
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fontSize: 12, fontWeight: 600, fill: '#6B7280' }}
-                                        tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                                        tick={{ fontSize: 10, fontWeight: 600, fill: '#9CA3AF' }}
+                                        tickFormatter={(val) => val >= 1000 ? `₹${(val / 1000).toFixed(0)}k` : `₹${val}`}
                                         width={50}
                                     />
                                     <Tooltip content={<CustomTooltip />} />
@@ -281,9 +323,11 @@ export default function InvestmentsPage() {
                                         dataKey="cumulative"
                                         name="Cumulative Invested"
                                         stroke="#8b5cf6"
+                                        strokeWidth={3}
                                         fillOpacity={1}
-                                        fill="url(#colorInvest)"
-                                        strokeWidth={4}
+                                        fill="url(#colorGrowthWhite)"
+                                        dot={false}
+                                        activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
@@ -291,46 +335,84 @@ export default function InvestmentsPage() {
                     </div>
                 </div>
 
-                {/* Monthly Volume */}
-                <div className="glass-card p-8">
-                    <div className="mb-8">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Investment Velocity</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Capital deployed vs Transaction frequency</p>
+                {/* Investment Breakdown by Category */}
+                <div className="glass-card p-6">
+                    <div className="mb-4">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Investment Breakdown by Category</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Each month shows separate bars for Stocks, Mutual Funds, FD, Bonds, etc.</p>
                     </div>
-                    <div className="h-80">
+                    <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data.monthlyData} margin={{ left: 20 }}>
+                            <BarChart data={data.monthlyData} margin={{ left: 20, right: 20 }} barGap={2} barCategoryGap="20%">
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                                 <XAxis
                                     dataKey="month"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fontSize: 12, fontWeight: 600, fill: '#6B7280' }}
+                                    tick={{ fontSize: 11, fontWeight: 600, fill: '#6B7280' }}
                                 />
                                 <YAxis
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fontSize: 12, fontWeight: 600, fill: '#6B7280' }}
-                                    tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
-                                    width={50}
+                                    tick={{ fontSize: 11, fontWeight: 600, fill: '#6B7280' }}
+                                    tickFormatter={(val) => val >= 1000 ? `₹${(val / 1000).toFixed(0)}k` : `₹${val}`}
+                                    width={60}
                                 />
                                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.02)' }} />
-                                <Bar
-                                    dataKey="amount"
-                                    name="Capital Invested"
-                                    fill="#4f46e5"
-                                    radius={[6, 6, 0, 0]}
-                                    barSize={32}
-                                />
-                                <Bar
-                                    dataKey="count"
-                                    name="Investments"
-                                    fill="#9333ea"
-                                    radius={[6, 6, 0, 0]}
-                                    barSize={32}
-                                />
+                                {/* Grouped bars - each category gets its own bar side by side */}
+                                {data.categories?.filter(cat => !hiddenCategories.has(cat)).map((category: string, index: number) => {
+                                    // Get original index for consistent colors
+                                    const originalIndex = data.categories?.indexOf(category) ?? index;
+                                    return (
+                                        <Bar
+                                            key={category}
+                                            dataKey={category}
+                                            name={category}
+                                            fill={COLORS[originalIndex % COLORS.length]}
+                                            radius={[4, 4, 0, 0]}
+                                            maxBarSize={35}
+                                        />
+                                    );
+                                })}
                             </BarChart>
                         </ResponsiveContainer>
+                    </div>
+                    {/* Interactive Category Legend - Click to toggle */}
+                    <div className="mt-4">
+                        <p className="text-[10px] text-gray-400 text-center mb-2">Click to show/hide categories</p>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                            {data.categories?.map((category: string, index: number) => {
+                                const isHidden = hiddenCategories.has(category);
+                                return (
+                                    <button
+                                        key={category}
+                                        onClick={() => toggleCategory(category)}
+                                        className={cn(
+                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] transition-all duration-200 border",
+                                            isHidden
+                                                ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-50"
+                                                : "bg-white dark:bg-gray-800 border-transparent shadow-sm hover:shadow-md"
+                                        )}
+                                    >
+                                        <div
+                                            className={cn(
+                                                "w-3 h-3 rounded-sm transition-all",
+                                                isHidden && "opacity-30"
+                                            )}
+                                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                        />
+                                        <span className={cn(
+                                            "text-xs font-bold transition-all",
+                                            isHidden
+                                                ? "text-gray-400 line-through"
+                                                : "text-gray-700 dark:text-gray-200"
+                                        )}>
+                                            {category}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>
