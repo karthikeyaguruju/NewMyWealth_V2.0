@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { hashPassword } from '@/lib/auth';
+import { supabase, getServiceSupabase } from '@/lib/supabase';
 import { signupSchema } from '@/lib/validations';
 
 export async function POST(request: NextRequest) {
@@ -17,55 +16,75 @@ export async function POST(request: NextRequest) {
 
         const { fullName, email, password } = validation.data;
 
-        // Check if user already exists
-        const existingUser = await prisma.user.findUnique({
-            where: { email },
-        });
-
-        if (existingUser) {
-            return NextResponse.json(
-                { error: 'User with this email already exists' },
-                { status: 409 }
-            );
-        }
-
-        const hashedPassword = await hashPassword(password);
-
-        // Create user
-        const user = await prisma.user.create({
-            data: {
-                fullName,
-                email,
-                passwordHash: hashedPassword,
+        // 1. Create user in Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: fullName,
+                },
             },
         });
 
-        // Seed default categories
+        if (authError) {
+            return NextResponse.json({ error: authError.message }, { status: 400 });
+        }
+
+        const user = authData.user;
+        if (!user) {
+            return NextResponse.json({ error: 'User creation failed' }, { status: 500 });
+        }
+
+        // Use service role to bypass RLS for initial setup
+        const supabaseService = getServiceSupabase();
+
+        // 2. Create Profile
+        const { error: profileError } = await supabaseService
+            .from('profiles')
+            .upsert({ id: user.id, full_name: fullName });
+
+        if (profileError) {
+            console.error('Profile creation error:', profileError);
+        }
+
+        // 3. Seed default categories exactly as per the UI design
         const defaultCategories = [
-            { name: 'Salary', categoryGroup: 'Income', isDefault: true },
-            { name: 'Freelancing', categoryGroup: 'Income', isDefault: true },
-            { name: 'Investment Returns', categoryGroup: 'Income', isDefault: true },
-            { name: 'Rent', categoryGroup: 'Expense', isDefault: true },
-            { name: 'Groceries', categoryGroup: 'Expense', isDefault: true },
-            { name: 'Utilities', categoryGroup: 'Expense', isDefault: true },
-            { name: 'Entertainment', categoryGroup: 'Expense', isDefault: true },
-            { name: 'Transportation', categoryGroup: 'Expense', isDefault: true },
-            { name: 'Healthcare', categoryGroup: 'Expense', isDefault: true },
-            { name: 'Stocks', categoryGroup: 'Investment', isDefault: true },
-            { name: 'Mutual Funds', categoryGroup: 'Investment', isDefault: true },
-            { name: 'Real Estate', categoryGroup: 'Investment', isDefault: true },
-            { name: 'Crypto', categoryGroup: 'Investment', isDefault: true },
-            { name: 'Gold', categoryGroup: 'Investment', isDefault: true },
-            { name: 'Bonds', categoryGroup: 'Investment', isDefault: true },
-            { name: 'Fixed Deposits', categoryGroup: 'Investment', isDefault: true },
+            // Income
+            { name: 'Salary', category_group: 'Income', is_default: true, user_id: user.id },
+            { name: 'Freelancing', category_group: 'Income', is_default: true, user_id: user.id },
+            { name: 'Investment Returns', category_group: 'Income', is_default: true, user_id: user.id },
+
+            // Expense
+            { name: 'Rent', category_group: 'Expense', is_default: true, user_id: user.id },
+            { name: 'Groceries', category_group: 'Expense', is_default: true, user_id: user.id },
+            { name: 'Utilities', category_group: 'Expense', is_default: true, user_id: user.id },
+            { name: 'Entertainment', category_group: 'Expense', is_default: true, user_id: user.id },
+            { name: 'Transportation', category_group: 'Expense', is_default: true, user_id: user.id },
+            { name: 'Healthcare', category_group: 'Expense', is_default: true, user_id: user.id },
+            { name: 'Insurance', category_group: 'Expense', is_default: true, user_id: user.id },
+            { name: 'Investment Out', category_group: 'Expense', is_default: true, user_id: user.id },
+
+            // Investment
+            { name: 'Stocks', category_group: 'Investment', is_default: true, user_id: user.id },
+            { name: 'Mutual Funds', category_group: 'Investment', is_default: true, user_id: user.id },
+            { name: 'Real Estate', category_group: 'Investment', is_default: true, user_id: user.id },
+            { name: 'Crypto', category_group: 'Investment', is_default: true, user_id: user.id },
+            { name: 'Gold', category_group: 'Investment', is_default: true, user_id: user.id },
+            { name: 'Bonds', category_group: 'Investment', is_default: true, user_id: user.id },
+            { name: 'Fixed Deposits', category_group: 'Investment', is_default: true, user_id: user.id },
         ];
 
-        await prisma.category.createMany({
-            data: defaultCategories.map(cat => ({ ...cat, userId: user.id })),
-        });
+        const { error: categoryError } = await supabaseService
+            .from('categories')
+            .insert(defaultCategories);
+
+        if (categoryError) {
+            console.error('Category seeding error:', categoryError);
+        }
 
         return NextResponse.json(
-            { message: 'User created successfully' },
+            { message: 'User created successfully. Please check your email if confirmation is enabled.' },
             { status: 201 }
         );
     } catch (error) {

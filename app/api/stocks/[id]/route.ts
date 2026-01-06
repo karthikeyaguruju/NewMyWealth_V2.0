@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/jwt';
+import { supabase, getServiceSupabase } from '@/lib/supabase';
 import { stockSchema } from '@/lib/validations';
 
-async function getUserId(request: NextRequest): Promise<string | null> {
+async function getUser(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
     if (!token) return null;
-    try {
-        const decoded = await verifyToken(token);
-        return decoded?.userId || null;
-    } catch (error) {
-        return null;
-    }
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user;
 }
 
 export async function PUT(
@@ -19,23 +15,33 @@ export async function PUT(
     { params }: { params: { id: string } }
 ) {
     try {
-        const userId = await getUserId(request);
-        if (!userId) {
+        const user = await getUser(request);
+        if (!user) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
         const body = await request.json();
         const validatedData = stockSchema.parse(body);
-        const { date, ...dataWithoutDate } = validatedData;
 
-        const stock = await prisma.stock.update({
-            where: { id: params.id, userId },
-            data: {
-                ...dataWithoutDate,
-                date: date ? new Date(date) : undefined,
-                totalValue: validatedData.quantity * validatedData.buyPrice,
-            },
-        });
+        const supabaseService = getServiceSupabase();
+
+        const { data: stock, error } = await supabaseService
+            .from('stocks')
+            .update({
+                symbol: validatedData.symbol.toUpperCase(),
+                name: validatedData.name,
+                quantity: validatedData.quantity,
+                buy_price: validatedData.buyPrice,
+                broker: validatedData.broker,
+                type: validatedData.type.toUpperCase(),
+                date: validatedData.date ? new Date(validatedData.date).toISOString() : undefined,
+            })
+            .eq('id', params.id)
+            .eq('user_id', user.id)
+            .select()
+            .single();
+
+        if (error) throw error;
 
         return NextResponse.json({ stock }, { status: 200 });
     } catch (error: any) {
@@ -51,17 +57,24 @@ export async function DELETE(
     { params }: { params: { id: string } }
 ) {
     try {
-        const userId = await getUserId(request);
-        if (!userId) {
+        const user = await getUser(request);
+        if (!user) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        await prisma.stock.delete({
-            where: { id: params.id, userId },
-        });
+        const supabaseService = getServiceSupabase();
+
+        const { error } = await supabaseService
+            .from('stocks')
+            .delete()
+            .eq('id', params.id)
+            .eq('user_id', user.id);
+
+        if (error) throw error;
 
         return NextResponse.json({ message: 'Stock deleted successfully' }, { status: 200 });
     } catch (error) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
+

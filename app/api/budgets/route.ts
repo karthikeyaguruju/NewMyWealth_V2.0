@@ -1,68 +1,64 @@
-// Budgets API route
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/jwt';
+import { supabase } from '@/lib/supabase';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 
-async function getUserId(request: NextRequest): Promise<string | null> {
+async function getUser(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
     if (!token) return null;
-    const decoded = await verifyToken(token);
-    return decoded?.userId || null;
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user;
 }
 
 // GET /api/budgets - Get budgets with spending progress
 export async function GET(request: NextRequest) {
     try {
-        const userId = await getUserId(request);
-        if (!userId) {
+        const user = await getUser(request);
+        if (!user) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
         const { searchParams } = new URL(request.url);
-        const monthParam = searchParams.get('month'); // Format: YYYY-MM
-
+        const monthParam = searchParams.get('month'); // YYYY-MM
         const currentMonth = monthParam || format(new Date(), 'yyyy-MM');
 
-        // Get budgets for the specified month
-        const budgets = await prisma.budget.findMany({
-            where: {
-                userId,
-                month: currentMonth,
-            },
-            include: {
-                category: true,
-            },
-        });
+        // Parse month dates for spending lookup
+        const [year, month] = currentMonth.split('-').map(Number);
+        const startDate = new Date(year, month - 1, 1).toISOString();
+        const endDate = endOfMonth(new Date(year, month - 1, 1)).toISOString();
 
-        // Calculate spending for each budget
-        const budgetsWithProgress = await Promise.all(budgets.map(async (budget) => {
-            // Construct Date objects for the start and end of the month
-            const [year, month] = currentMonth.split('-').map(Number);
-            const startDate = new Date(year, month - 1, 1); // Local time start of month
-            const endDate = endOfMonth(startDate); // Local time end of month
+        // 1. Get budgets for this user and month
+        const { data: budgets, error: budgetErr } = await supabase
+            .from('budgets')
+            .select('*, categories(name)')
+            .eq('user_id', user.id)
+            .eq('month', currentMonth);
 
-            const expenses = await prisma.transaction.aggregate({
-                where: {
-                    userId,
-                    type: 'expense',
-                    category: budget.category.name, // Use name from relation
-                    date: {
-                        gte: startDate,
-                        lte: endDate,
-                    },
-                },
-                _sum: {
-                    amount: true,
-                },
-            });
+        if (budgetErr) throw budgetErr;
+
+        // 2. Get all expenses for this user in this month to calculate progress
+        const { data: transactions, error: txErr } = await supabase
+            .from('transactions')
+            .select('amount, category_id')
+            .eq('user_id', user.id)
+            .eq('type', 'expense')
+            .gte('date', startDate)
+            .lte('date', endDate);
+
+        if (txErr) throw txErr;
+
+        // 3. Combine data
+        const budgetsWithProgress = budgets.map(budget => {
+            const spent = transactions
+                .filter(t => t.category_id === budget.category_id)
+                .reduce((sum, t) => sum + Number(t.amount), 0);
 
             return {
                 ...budget,
-                category: budget.category.name, // Flatten for frontend compatibility
-                spent: expenses._sum.amount || 0,
+                category: budget.categories?.name || 'Unknown',
+                spent
             };
-        }));
+        });
 
         return NextResponse.json(budgetsWithProgress);
     } catch (error) {
@@ -71,68 +67,46 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST /api/budgets - Create a new budget
+// POST /api/budgets - Create/Update a budget
 export async function POST(request: NextRequest) {
     try {
-        const userId = await getUserId(request);
-        if (!userId) {
+        const user = await getUser(request);
+        if (!user) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
         const body = await request.json();
         const { category: categoryName, amount, month } = body;
 
-        if (!categoryName || !amount || !month) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-        }
+        // Find the category ID by name
+        const { data: category, error: catErr } = await supabase
+            .from('categories')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('name', categoryName)
+            .single();
 
-        // Find the category first to get its ID
-        const categoryObj = await prisma.category.findFirst({
-            where: {
-                userId,
-                name: categoryName,
-            },
-        });
-
-        if (!categoryObj) {
+        if (!category) {
             return NextResponse.json({ error: 'Category not found' }, { status: 404 });
         }
 
-        // Check if budget already exists for this category and month
-        const existingBudget = await prisma.budget.findFirst({
-            where: {
-                userId,
-                categoryId: categoryObj.id,
-                month,
-            },
-        });
-
-        if (existingBudget) {
-            // Update existing instead of failing
-            const updatedBudget = await prisma.budget.update({
-                where: { id: existingBudget.id },
-                data: { amount: parseFloat(amount) },
-                include: { category: true },
-            });
-            return NextResponse.json({
-                ...updatedBudget,
-                category: updatedBudget.category.name,
-            });
-        }
-
-        const budget = await prisma.budget.create({
-            data: {
-                userId,
-                categoryId: categoryObj.id,
+        // Upsert the budget
+        const { data: budget, error: budgetErr } = await supabase
+            .from('budgets')
+            .upsert({
+                user_id: user.id,
+                category_id: category.id,
                 amount: parseFloat(amount),
-                month,
-            },
-            include: { category: true },
-        });
+                month: month
+            }, { onConflict: 'user_id, category_id, month' })
+            .select('*, categories(name)')
+            .single();
+
+        if (budgetErr) throw budgetErr;
 
         return NextResponse.json({
             ...budget,
-            category: budget.category.name,
+            category: budget.categories?.name || categoryName
         }, { status: 201 });
 
     } catch (error) {

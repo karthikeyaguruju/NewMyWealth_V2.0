@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/jwt';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,33 +12,31 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const decoded = await verifyToken(token);
+        // Verify with Supabase
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
-        if (!decoded) {
+        if (authError || !user) {
             return NextResponse.json(
-                { error: 'Invalid token' },
+                { error: 'Invalid session' },
                 { status: 401 }
             );
         }
 
-        const user = await prisma.user.findUnique({
-            where: { id: decoded.userId },
-            select: {
-                id: true,
-                email: true,
-                fullName: true,
-                createdAt: true,
-            },
-        });
+        // Fetch profile data
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
 
-        if (!user) {
-            return NextResponse.json(
-                { error: 'User not found' },
-                { status: 404 }
-            );
-        }
-
-        return NextResponse.json({ user }, { status: 200 });
+        return NextResponse.json({
+            user: {
+                id: user.id,
+                email: user.email,
+                fullName: profile?.full_name || user.user_metadata?.full_name || 'User',
+                createdAt: user.created_at,
+            }
+        }, { status: 200 });
     } catch (error) {
         console.error('Get user error:', error);
         return NextResponse.json(

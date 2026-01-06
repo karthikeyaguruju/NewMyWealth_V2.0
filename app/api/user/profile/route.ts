@@ -1,38 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/jwt';
+import { supabase, getServiceSupabase } from '@/lib/supabase';
 
-async function getUserId(request: NextRequest): Promise<string | null> {
+// Helper to get user via Supabase token
+async function getUser(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
     if (!token) return null;
-
-    const decoded = await verifyToken(token);
-    return decoded?.userId || null;
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user;
 }
 
 // GET /api/user/profile - Get user profile
 export async function GET(request: NextRequest) {
     try {
-        const userId = await getUserId(request);
-        if (!userId) {
+        const user = await getUser(request);
+        if (!user) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-                id: true,
-                email: true,
-                fullName: true,
-                createdAt: true,
-            },
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        return NextResponse.json({
+            user: {
+                id: user.id,
+                email: user.email,
+                fullName: profile?.full_name || user.user_metadata?.full_name || 'User',
+                createdAt: user.created_at,
+            }
         });
-
-        if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        return NextResponse.json({ user });
     } catch (error) {
         console.error('Get profile error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -42,39 +41,31 @@ export async function GET(request: NextRequest) {
 // PUT /api/user/profile - Update user profile and settings
 export async function PUT(request: NextRequest) {
     try {
-        const userId = await getUserId(request);
-        if (!userId) {
+        const user = await getUser(request);
+        if (!user) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
         const body = await request.json();
-        const { fullName, email } = body;
+        const { fullName } = body;
 
-        // Check if email is being changed and if it's already taken
-        if (email) {
-            const existingUser = await prisma.user.findUnique({
-                where: { email },
-            });
-            if (existingUser && existingUser.id !== userId) {
-                return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
+        const { data: updatedProfile, error: profileError } = await supabase
+            .from('profiles')
+            .update({ full_name: fullName })
+            .eq('id', user.id)
+            .select()
+            .single();
+
+        if (profileError) throw profileError;
+
+        return NextResponse.json({
+            user: {
+                id: user.id,
+                email: user.email,
+                fullName: updatedProfile.full_name,
+                createdAt: user.created_at,
             }
-        }
-
-        const updatedUser = await prisma.user.update({
-            where: { id: userId },
-            data: {
-                fullName,
-                email,
-            },
-            select: {
-                id: true,
-                email: true,
-                fullName: true,
-                createdAt: true,
-            },
         });
-
-        return NextResponse.json({ user: updatedUser });
     } catch (error) {
         console.error('Update profile error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -84,31 +75,15 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/user/profile - Delete user account
 export async function DELETE(request: NextRequest) {
     try {
-        const userId = await getUserId(request);
-        if (!userId) {
+        const user = await getUser(request);
+        if (!user) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        // Delete all related records first (in order to avoid foreign key constraints)
-        // 1. Delete all transactions for this user
-        await prisma.transaction.deleteMany({
-            where: { userId },
-        });
+        const supabaseService = getServiceSupabase();
+        const { error } = await supabaseService.auth.admin.deleteUser(user.id);
 
-        // 2. Delete all budgets for this user
-        await prisma.budget.deleteMany({
-            where: { userId },
-        });
-
-        // 3. Delete all categories for this user
-        await prisma.category.deleteMany({
-            where: { userId },
-        });
-
-        // 4. Finally, delete the user
-        await prisma.user.delete({
-            where: { id: userId },
-        });
+        if (error) throw error;
 
         const response = NextResponse.json({ message: 'Account deleted successfully' });
         response.cookies.delete('token');

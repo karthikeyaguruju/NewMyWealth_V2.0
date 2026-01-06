@@ -1,52 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { comparePassword } from '@/lib/auth';
-import { generateToken } from '@/lib/jwt';
+import { supabase } from '@/lib/supabase';
 import { loginSchema } from '@/lib/validations';
 
 export async function POST(request: NextRequest) {
     try {
-        console.time('Login Total');
         const body = await request.json();
 
         // Validate input
         const validatedData = loginSchema.parse(body);
 
-        // Find user
-        console.time('DB Find User');
-        const user = await prisma.user.findUnique({
-            where: { email: validatedData.email },
+        // Sign in with Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: validatedData.email,
+            password: validatedData.password,
         });
-        console.timeEnd('DB Find User');
 
-        if (!user) {
-            console.timeEnd('Login Total');
+        if (error) {
             return NextResponse.json(
-                { error: 'Invalid credentials' },
+                { error: error.message },
                 { status: 401 }
             );
         }
 
-        // Verify password
-        console.time('Password Compare');
-        const isValidPassword = await comparePassword(
-            validatedData.password,
-            user.passwordHash
-        );
-        console.timeEnd('Password Compare');
+        const { user, session } = data;
 
-        if (!isValidPassword) {
-            console.timeEnd('Login Total');
-            return NextResponse.json(
-                { error: 'Invalid credentials' },
-                { status: 401 }
-            );
-        }
-
-        // Generate JWT token
-        console.time('Token Gen');
-        const token = await generateToken(user.id);
-        console.timeEnd('Token Gen');
+        // Fetch user profile for full name
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
 
         // Create response
         const response = NextResponse.json(
@@ -54,23 +37,26 @@ export async function POST(request: NextRequest) {
                 message: 'Login successful',
                 user: {
                     id: user.id,
-                    fullName: user.fullName,
+                    fullName: profile?.full_name || user.user_metadata?.full_name || 'User',
                     email: user.email,
                 },
             },
             { status: 200 }
         );
 
-        // Set httpOnly cookie
-        response.cookies.set('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 600, // 10 minutes
-            path: '/',
-        });
+        // Supabase session usually comes with access_token and refresh_token
+        // For simple migration, we'll set a basic cookie or let the frontend handle it.
+        // But since your middleware expects a 'token', we'll set the access_token.
+        if (session) {
+            response.cookies.set('token', session.access_token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: session.expires_in,
+                path: '/',
+            });
+        }
 
-        console.timeEnd('Login Total');
         return response;
     } catch (error: any) {
         console.error('Login error:', error);
