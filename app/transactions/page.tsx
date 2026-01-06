@@ -753,7 +753,7 @@ function TransactionsContent() {
                             <div className="flex gap-3 pt-2">
                                 <Button
                                     variant="outline"
-                                    fullWidth
+                                    className="w-full"
                                     onClick={() => {
                                         handleEdit(selectedDetailTransaction);
                                         setSelectedDetailTransaction(null);
