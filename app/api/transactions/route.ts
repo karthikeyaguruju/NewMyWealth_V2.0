@@ -1,4 +1,5 @@
 // Transactions API routes
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, getServiceSupabase } from '@/lib/supabase';
 import { transactionSchema } from '@/lib/validations';

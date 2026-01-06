@@ -1,4 +1,5 @@
 // Analytics route - provides dashboard metrics
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, getServiceSupabase } from '@/lib/supabase';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
